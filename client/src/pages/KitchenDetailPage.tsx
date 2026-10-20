@@ -20,6 +20,7 @@ export const KitchenDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [kitchen, setKitchen] = useState<Kitchen | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
   const [isLoading, setIsLoading] = useState(true);
 
@@ -33,6 +34,12 @@ export const KitchenDetailPage: React.FC = () => {
           const data = await res.json();
           setKitchen(data);
           setMenuItems(data.menuItems || []);
+        }
+
+        const resRev = await fetch(`/api/reviews?kitchenId=${id}`);
+        if (resRev.ok) {
+          const revData = await resRev.json();
+          setReviews(revData);
         }
       } catch (err) {
         console.error('Failed to load kitchen details:', err);
@@ -271,6 +278,56 @@ export const KitchenDetailPage: React.FC = () => {
               </div>
             );
           })}
+        </div>
+
+        {/* 💬 VERIFIED CUSTOMER REVIEWS */}
+        <div className="mt-12 bg-white rounded-3xl p-6 sm:p-8 border border-stone-200/90 shadow-xs">
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-stone-100">
+            <div>
+              <h2 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+                <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                <span>Verified Customer Reviews</span>
+              </h2>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Rated {kitchen.rating} out of 5 based on {reviews.length} authentic customer experiences
+              </p>
+            </div>
+            <span className="text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 px-3 py-1 rounded-full">
+              {kitchen.rating} ★ Average
+            </span>
+          </div>
+
+          {reviews.length === 0 ? (
+            <div className="text-center py-8 text-xs text-stone-500 bg-stone-50 rounded-2xl">
+              Be the first to order and review Chef {kitchen.cookName}'s food!
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {reviews.map((r: any) => (
+                <div key={r.id} className="p-4 rounded-2xl border border-stone-100 bg-stone-50/60 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-stone-800">{r.customerName}</span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                        Verified Order
+                      </span>
+                    </div>
+                    <div className="flex text-amber-500">
+                      {Array.from({ length: r.rating || 5 }).map((_, idx) => (
+                        <Star key={idx} className="w-3.5 h-3.5 fill-amber-500" />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-stone-600 leading-relaxed italic">
+                    "{r.comment}"
+                  </p>
+                  <div className="text-[10px] text-stone-400">
+                    {new Date(r.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

@@ -14,8 +14,11 @@ import {
   Sparkles,
   HeartHandshake,
   Soup,
-  CalendarCheck
+  CalendarCheck,
+  Map as MapIcon,
+  LayoutGrid
 } from 'lucide-react';
+import { KitchenMap } from '../components/KitchenMap';
 import type { Kitchen } from '../types';
 
 export const LandingPage: React.FC = () => {
@@ -25,6 +28,7 @@ export const LandingPage: React.FC = () => {
   const [userLocation, setUserLocation] = useState('Sector 62, Noida (Hostel Zone)');
   const [isLoading, setIsLoading] = useState(true);
   const [isLocating, setIsLocating] = useState(false);
+  const [viewMode, setViewMode] = useState<'LIST' | 'MAP'>('LIST');
 
   useEffect(() => {
     fetchKitchens();
@@ -169,23 +173,63 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 🍲 KITCHENS GRID */}
+      {/* 🍲 KITCHENS GRID OR MAP */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
             <h2 className="text-2xl font-bold text-stone-900 tracking-tight">Today's Verified Home Kitchens</h2>
             <p className="text-xs text-stone-500 mt-1">Cooked fresh in small domestic batches with genuine care</p>
           </div>
-          <Link
-            to="/subscriptions"
-            className="text-xs font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1 group"
-          >
-            <span>Book Monthly Tiffin</span>
-            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-          </Link>
+
+          <div className="flex items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="bg-stone-100 p-1 rounded-xl flex items-center gap-1 border border-stone-200">
+              <button
+                onClick={() => setViewMode('LIST')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'LIST'
+                    ? 'bg-white text-orange-600 shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>List View</span>
+              </button>
+
+              <button
+                onClick={() => setViewMode('MAP')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'MAP'
+                    ? 'bg-white text-orange-600 shadow-xs'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <MapIcon className="w-3.5 h-3.5" />
+                <span>Map View</span>
+              </button>
+            </div>
+
+            <Link
+              to="/subscriptions"
+              className="text-xs font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1 group bg-orange-50 px-3 py-1.5 rounded-xl border border-orange-200"
+            >
+              <span>Book Monthly Tiffin</span>
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
         </div>
 
-        {isLoading ? (
+        {viewMode === 'MAP' ? (
+          <div className="space-y-4">
+            <div className="text-xs text-stone-500 flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-blue-600 inline-block" />
+              <span>Blue Pin: Your Delivery Location</span>
+              <span className="w-3 h-3 rounded-full bg-orange-600 inline-block ml-4" />
+              <span>Orange Pin: Local Home Kitchen (Click to view menu)</span>
+            </div>
+            <KitchenMap kitchens={kitchens} userLocationName={userLocation} />
+          </div>
+        ) : isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[1, 2, 3].map((n) => (
               <div key={n} className="bg-white rounded-3xl h-80 animate-pulse border border-stone-200" />

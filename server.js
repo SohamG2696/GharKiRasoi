@@ -14,6 +14,7 @@ const deliveryRoutes = require("./server/routes/delivery");
 const subscriptionRoutes = require("./server/routes/subscriptions");
 const adminRoutes = require("./server/routes/admin");
 const paymentRoutes = require("./server/routes/payments");
+const reviewRoutes = require("./server/routes/reviews");
 
 const app = express();
 app.use(cors());
@@ -48,6 +49,7 @@ app.use("/api/delivery", deliveryRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 // =========================================================
 // 🔄 Backward-Compatibility Adapters for Legacy Routes

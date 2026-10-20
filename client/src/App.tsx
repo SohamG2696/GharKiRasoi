@@ -16,6 +16,7 @@ import { CookDashboardPage } from './pages/CookDashboardPage';
 import { DeliveryDashboardPage } from './pages/DeliveryDashboardPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { SubscriptionsPage } from './pages/SubscriptionsPage';
+import { CookRegisterPage } from './pages/CookRegisterPage';
 
 export function App() {
   return (
@@ -32,6 +33,7 @@ export function App() {
                 <Route path="/order/:id" element={<OrderTrackingPage />} />
                 <Route path="/orders" element={<OrdersListPage />} />
                 <Route path="/cook" element={<CookDashboardPage />} />
+                <Route path="/cook/register" element={<CookRegisterPage />} />
                 <Route path="/delivery" element={<DeliveryDashboardPage />} />
                 <Route path="/admin" element={<AdminDashboardPage />} />
                 <Route path="/subscriptions" element={<SubscriptionsPage />} />

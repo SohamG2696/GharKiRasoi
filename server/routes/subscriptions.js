@@ -63,4 +63,25 @@ router.post('/', (req, res) => {
   }
 });
 
+// PATCH /api/subscriptions/:id - Pause, resume or skip date
+router.patch('/:id', (req, res) => {
+  try {
+    const { status, skippedDate } = req.body;
+    const sub = store.data.subscriptions.find(s => s.id === req.params.id);
+    if (!sub) return res.status(404).json({ message: 'Subscription not found' });
+
+    if (status) sub.status = status;
+    if (skippedDate) {
+      if (!sub.skippedDates) sub.skippedDates = [];
+      if (!sub.skippedDates.includes(skippedDate)) {
+        sub.skippedDates.push(skippedDate);
+      }
+    }
+    store.save();
+    res.json({ message: 'Subscription updated', subscription: sub });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to update subscription', error: err.message });
+  }
+});
+
 module.exports = router;

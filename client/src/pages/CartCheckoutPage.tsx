@@ -1,4 +1,4 @@
-// client/src/pages/CartCheckoutPage.tsx - Itemized Checkout & Payment Simulation
+// client/src/pages/CartCheckoutPage.tsx - Itemized Checkout & Interactive Payment Gateway Simulator
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -12,14 +12,30 @@ import {
   Minus,
   Trash2,
   ArrowLeft,
-  CheckCircle2
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Lock,
+  Smartphone
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 
 export const CartCheckoutPage: React.FC = () => {
-  const { items, kitchen, updateQuantity, removeItem, clearCart, subtotal, deliveryFee, platformFee, totalAmount, specialInstructions, setSpecialInstructions } = useCart();
+  const {
+    items,
+    kitchen,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    subtotal,
+    deliveryFee,
+    platformFee,
+    totalAmount,
+    specialInstructions,
+    setSpecialInstructions
+  } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -29,7 +45,14 @@ export const CartCheckoutPage: React.FC = () => {
   const [customerPhone, setCustomerPhone] = useState(user?.phone || '+91 98765 43210');
   const [paymentMethod, setPaymentMethod] = useState<'UPI' | 'CARD' | 'CASH_ON_DELIVERY'>('UPI');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showQrModal, setShowQrModal] = useState(false);
+
+  // Interactive Payment Gateway Modal
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [modalTab, setModalTab] = useState<'UPI' | 'CARD' | 'COD'>('UPI');
+  const [paymentError, setPaymentError] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
 
   if (items.length === 0 || !kitchen) {
     return (
@@ -51,8 +74,22 @@ export const CartCheckoutPage: React.FC = () => {
     );
   }
 
-  const handlePlaceOrder = async () => {
+  // Trigger payment modal
+  const handleInitiatePayment = () => {
+    setPaymentError('');
+    setShowPaymentModal(true);
+  };
+
+  // Execute actual order creation on payment verification
+  const handleConfirmOrder = async (isSuccess = true) => {
+    if (!isSuccess) {
+      setPaymentError('❌ Payment declined by simulated bank gateway: Insufficient balance or user cancelled.');
+      return;
+    }
+
     setIsSubmitting(true);
+    setPaymentError('');
+
     try {
       const orderPayload = {
         customerId: user?.id || 'usr-customer-1',
@@ -62,7 +99,7 @@ export const CartCheckoutPage: React.FC = () => {
         deliveryAddress,
         specialInstructions,
         items: items.map(i => ({ id: i.item.id, quantity: i.quantity })),
-        paymentMethod
+        paymentMethod: modalTab === 'COD' ? 'CASH_ON_DELIVERY' : modalTab === 'CARD' ? 'CARD' : 'UPI'
       };
 
       const res = await fetch('/api/orders', {
@@ -86,13 +123,20 @@ export const CartCheckoutPage: React.FC = () => {
         origin: { y: 0.6 }
       });
 
+      setShowPaymentModal(false);
       clearCart();
       navigate(`/order/${placedOrder.id}`);
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      setPaymentError(err.message || 'Order creation failed');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleFillTestCard = () => {
+    setCardNumber('4532 8920 4589 1234');
+    setCardExpiry('12/28');
+    setCardCvv('782');
   };
 
   return (
@@ -151,14 +195,14 @@ export const CartCheckoutPage: React.FC = () => {
                       <div className="flex items-center bg-stone-100 rounded-lg p-1 text-xs font-bold">
                         <button
                           onClick={() => updateQuantity(item.id, quantity - 1)}
-                          className="p-1 hover:bg-stone-200 rounded-sm"
+                          className="p-1 hover:bg-stone-200 rounded-sm cursor-pointer"
                         >
                           <Minus className="w-3 h-3 text-stone-700" />
                         </button>
                         <span className="px-2">{quantity}</span>
                         <button
                           onClick={() => updateQuantity(item.id, quantity + 1)}
-                          className="p-1 hover:bg-stone-200 rounded-sm"
+                          className="p-1 hover:bg-stone-200 rounded-sm cursor-pointer"
                         >
                           <Plus className="w-3 h-3 text-stone-700" />
                         </button>
@@ -223,63 +267,9 @@ export const CartCheckoutPage: React.FC = () => {
                 </div>
               </div>
             </div>
-
-            {/* Payment Method Selector */}
-            <div className="bg-white rounded-3xl p-6 border border-stone-200/90 shadow-xs space-y-3">
-              <h2 className="text-base font-bold text-stone-900 flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-orange-500" />
-                <span>Select Payment Method</span>
-              </h2>
-
-              <div className="grid grid-cols-3 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('UPI')}
-                  className={`p-3.5 rounded-2xl border text-xs font-semibold flex flex-col items-center gap-2 transition-all cursor-pointer ${
-                    paymentMethod === 'UPI'
-                      ? 'border-orange-500 bg-orange-50 text-orange-800'
-                      : 'border-stone-200 hover:bg-stone-50 text-stone-700'
-                  }`}
-                >
-                  <QrCode className="w-5 h-5 text-orange-600" />
-                  <span>UPI / QR</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('CARD')}
-                  className={`p-3.5 rounded-2xl border text-xs font-semibold flex flex-col items-center gap-2 transition-all cursor-pointer ${
-                    paymentMethod === 'CARD'
-                      ? 'border-orange-500 bg-orange-50 text-orange-800'
-                      : 'border-stone-200 hover:bg-stone-50 text-stone-700'
-                  }`}
-                >
-                  <CreditCard className="w-5 h-5 text-orange-600" />
-                  <span>Cards / NetBanking</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('CASH_ON_DELIVERY')}
-                  className={`p-3.5 rounded-2xl border text-xs font-semibold flex flex-col items-center gap-2 transition-all cursor-pointer ${
-                    paymentMethod === 'CASH_ON_DELIVERY'
-                      ? 'border-orange-500 bg-orange-50 text-orange-800'
-                      : 'border-stone-200 hover:bg-stone-50 text-stone-700'
-                  }`}
-                >
-                  <ShieldCheck className="w-5 h-5 text-orange-600" />
-                  <span>Pay on Delivery</span>
-                </button>
-              </div>
-
-              <div className="bg-amber-50 rounded-xl p-3 text-[11px] text-amber-800 border border-amber-200 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Demo Payment Gateway Active: Transactions are verified in test mode securely.</span>
-              </div>
-            </div>
           </div>
 
-          {/* RIGHT 1 COLUMN: Bill Summary & Checkout Button */}
+          {/* RIGHT 1 COLUMN: Bill Summary & Proceed Button */}
           <div className="space-y-6">
             <div className="bg-white rounded-3xl p-6 border border-stone-200/90 shadow-xs space-y-4 sticky top-24">
               <h2 className="text-base font-bold text-stone-900 border-b border-stone-100 pb-3">
@@ -311,18 +301,11 @@ export const CartCheckoutPage: React.FC = () => {
               </div>
 
               <button
-                onClick={handlePlaceOrder}
-                disabled={isSubmitting}
+                onClick={handleInitiatePayment}
                 className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-orange-600/20 cursor-pointer flex items-center justify-center gap-2"
               >
-                {isSubmitting ? (
-                  <span>Processing Order...</span>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Confirm & Pay ₹{totalAmount}</span>
-                  </>
-                )}
+                <Lock className="w-4 h-4" />
+                <span>Proceed to Pay ₹{totalAmount}</span>
               </button>
 
               <div className="text-[11px] text-stone-400 text-center flex items-center justify-center gap-1">
@@ -333,6 +316,180 @@ export const CartCheckoutPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 💳 INTERACTIVE PAYMENT GATEWAY MODAL (SIMULATOR & TEST GATEWAY) */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-stone-200">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-stone-900">Ghar Ki Rasoi Payment</h3>
+                  <p className="text-[10px] text-stone-400">Secure Test Payment Simulator</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] text-stone-400">Amount to Pay</div>
+                <div className="text-base font-extrabold text-orange-600">₹{totalAmount}</div>
+              </div>
+            </div>
+
+            {/* Payment Method Tabs */}
+            <div className="grid grid-cols-3 gap-2 my-4">
+              <button
+                onClick={() => { setModalTab('UPI'); setPaymentError(''); }}
+                className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  modalTab === 'UPI'
+                    ? 'bg-orange-600 text-white shadow-xs'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                <span>UPI / QR</span>
+              </button>
+
+              <button
+                onClick={() => { setModalTab('CARD'); setPaymentError(''); }}
+                className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  modalTab === 'CARD'
+                    ? 'bg-orange-600 text-white shadow-xs'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Card</span>
+              </button>
+
+              <button
+                onClick={() => { setModalTab('COD'); setPaymentError(''); }}
+                className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  modalTab === 'COD'
+                    ? 'bg-orange-600 text-white shadow-xs'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Cash/COD</span>
+              </button>
+            </div>
+
+            {/* TAB CONTENT: UPI */}
+            {modalTab === 'UPI' && (
+              <div className="text-center py-2 space-y-3">
+                <div className="w-36 h-36 mx-auto bg-stone-50 border-2 border-stone-200 rounded-2xl p-2 flex items-center justify-center shadow-inner">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=upi://pay?pa=gharkirasoi@icici&pn=GharKiRasoi&am=${totalAmount}&cu=INR`}
+                    alt="UPI QR Code"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="text-[11px] text-stone-500">
+                  Scan with <strong>Google Pay</strong>, <strong>PhonePe</strong>, or <strong>Paytm</strong>
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: Card */}
+            {modalTab === 'CARD' && (
+              <div className="space-y-3 py-1">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-[11px] font-semibold text-stone-600">Card Number</label>
+                    <button
+                      type="button"
+                      onClick={handleFillTestCard}
+                      className="text-[10px] text-orange-600 hover:underline font-bold"
+                    >
+                      Fill Test Card
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(e.target.value)}
+                    placeholder="4532 8920 4589 1234"
+                    className="w-full text-xs p-2.5 rounded-xl border border-stone-200 focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-stone-600 mb-1">Expiry</label>
+                    <input
+                      type="text"
+                      value={cardExpiry}
+                      onChange={(e) => setCardExpiry(e.target.value)}
+                      placeholder="MM/YY"
+                      className="w-full text-xs p-2.5 rounded-xl border border-stone-200 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-stone-600 mb-1">CVV</label>
+                    <input
+                      type="password"
+                      maxLength={3}
+                      value={cardCvv}
+                      onChange={(e) => setCardCvv(e.target.value)}
+                      placeholder="•••"
+                      className="w-full text-xs p-2.5 rounded-xl border border-stone-200 focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: COD */}
+            {modalTab === 'COD' && (
+              <div className="text-center py-4 bg-stone-50 rounded-2xl border border-stone-100 text-xs text-stone-600 space-y-1">
+                <div className="font-bold text-stone-800">Pay Upon Meal Handover</div>
+                <div className="text-[11px] text-stone-500">
+                  You can pay cash or scan the delivery partner's QR code when your food arrives.
+                </div>
+              </div>
+            )}
+
+            {/* Payment Error Alert */}
+            {paymentError && (
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 text-red-800 rounded-xl text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
+                <span>{paymentError}</span>
+              </div>
+            )}
+
+            {/* Action Simulator Buttons */}
+            <div className="pt-5 space-y-2">
+              <button
+                onClick={() => handleConfirmOrder(true)}
+                disabled={isSubmitting}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{isSubmitting ? 'Verifying & Placing Order...' : 'Simulate Payment Success (Place Order)'}</span>
+              </button>
+
+              <button
+                onClick={() => handleConfirmOrder(false)}
+                disabled={isSubmitting}
+                className="w-full bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>Simulate Payment Failure / Decline</span>
+              </button>
+
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="w-full text-stone-500 hover:text-stone-700 py-1.5 text-xs font-semibold"
+              >
+                Cancel & Return
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

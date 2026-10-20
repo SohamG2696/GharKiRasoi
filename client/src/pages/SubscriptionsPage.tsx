@@ -268,34 +268,92 @@ export const SubscriptionsPage: React.FC = () => {
           <p className="text-xs text-stone-500 mb-6">Track your scheduled daily meals and active kitchen</p>
 
           <div className="space-y-4">
-            {subscriptions.map(s => (
-              <div
-                key={s.id}
-                className="p-5 rounded-2xl border border-stone-200 bg-stone-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-stone-900">{s.kitchenName}</span>
-                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full uppercase">
-                      {s.status}
-                    </span>
-                  </div>
-                  <div className="text-xs text-stone-600 mt-1">
-                    {s.planType} Plan • {s.mealSlot} • Active until {s.endDate}
-                  </div>
-                  {s.dietaryNotes && (
-                    <div className="text-[11px] text-stone-500 mt-1 italic">
-                      Notes: {s.dietaryNotes}
-                    </div>
-                  )}
-                </div>
+            {subscriptions.map(s => {
+              const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+              const isPaused = s.status === 'PAUSED';
 
-                <div className="text-right">
-                  <div className="text-sm font-extrabold text-orange-600">₹{s.totalAmount}</div>
-                  <div className="text-[10px] text-stone-400">Prepaid</div>
+              const handleTogglePause = async () => {
+                try {
+                  const res = await fetch(`/api/subscriptions/${s.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: isPaused ? 'ACTIVE' : 'PAUSED' })
+                  });
+                  if (res.ok) fetchSubscriptions();
+                } catch {
+                  alert('Error updating subscription status');
+                }
+              };
+
+              const handleSkipTomorrow = async () => {
+                try {
+                  const res = await fetch(`/api/subscriptions/${s.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ skippedDate: tomorrow })
+                  });
+                  if (res.ok) {
+                    alert(`✅ Tomorrow's meal (${tomorrow}) skipped. Your subscription end date will be extended!`);
+                    fetchSubscriptions();
+                  }
+                } catch {
+                  alert('Error skipping meal');
+                }
+              };
+
+              return (
+                <div
+                  key={s.id}
+                  className="p-5 rounded-2xl border border-stone-200 bg-stone-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-stone-900">{s.kitchenName}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                        isPaused ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {s.status}
+                      </span>
+                    </div>
+                    <div className="text-xs text-stone-600">
+                      {s.planType} Plan • {s.mealSlot} • Active until {s.endDate}
+                    </div>
+                    {s.dietaryNotes && (
+                      <div className="text-[11px] text-stone-500 italic">
+                        Notes: {s.dietaryNotes}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSkipTomorrow}
+                      className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white border border-stone-200 text-stone-700 hover:bg-stone-100 cursor-pointer"
+                    >
+                      Skip Tomorrow's Meal
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleTogglePause}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+                        isPaused
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          : 'bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300'
+                      }`}
+                    >
+                      {isPaused ? 'Resume Plan' : 'Pause Plan'}
+                    </button>
+
+                    <div className="text-right pl-2 border-l border-stone-200">
+                      <div className="text-sm font-extrabold text-orange-600">₹{s.totalAmount}</div>
+                      <div className="text-[10px] text-stone-400">Prepaid</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

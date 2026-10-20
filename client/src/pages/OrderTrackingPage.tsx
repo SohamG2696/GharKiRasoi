@@ -1,4 +1,4 @@
-// client/src/pages/OrderTrackingPage.tsx - Real-Time State Machine Tracker with OTP
+// client/src/pages/OrderTrackingPage.tsx - Real-Time State Machine Tracker with Route Map & Reviews
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -11,8 +11,12 @@ import {
   AlertCircle,
   ArrowLeft,
   KeyRound,
-  RefreshCw
+  RefreshCw,
+  Star,
+  Send
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { DeliveryRouteMap } from '../components/DeliveryRouteMap';
 import type { Order, OrderStatus } from '../types';
 
 export const OrderTrackingPage: React.FC = () => {
@@ -20,6 +24,12 @@ export const OrderTrackingPage: React.FC = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
+
+  // Review State
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
   const fetchOrder = async () => {
     try {
@@ -38,10 +48,41 @@ export const OrderTrackingPage: React.FC = () => {
 
   useEffect(() => {
     fetchOrder();
-    // Auto-refresh every 3 seconds for live tracking
     const interval = setInterval(fetchOrder, 3000);
     return () => clearInterval(interval);
   }, [id]);
+
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+    setIsSubmittingReview(true);
+
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          kitchenId: order.kitchenId,
+          customerId: order.customerId,
+          customerName: order.customerName,
+          rating,
+          comment
+        })
+      });
+
+      if (res.ok) {
+        confetti({ particleCount: 50, spread: 60 });
+        setReviewSubmitted(true);
+      } else {
+        alert('Failed to submit review');
+      }
+    } catch {
+      alert('Error submitting review');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   if (isLoading && !order) {
     return (
@@ -196,6 +237,31 @@ export const OrderTrackingPage: React.FC = () => {
           </div>
         </div>
 
+        {/* 🗺️ LIVE DELIVERY ROUTE MAP */}
+        {!isRejected && !isCancelled && (
+          <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-bold text-stone-900 flex items-center gap-2">
+                <Bike className="w-4 h-4 text-orange-500" />
+                <span>Live Route & Delivery Map</span>
+              </h2>
+              <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                GPS Tracking Active
+              </span>
+            </div>
+            <DeliveryRouteMap
+              kitchenLat={order.deliveryLat ? order.deliveryLat + 0.003 : 28.6295}
+              kitchenLng={order.deliveryLng ? order.deliveryLng + 0.002 : 77.3660}
+              kitchenName={order.kitchenName}
+              customerLat={order.deliveryLat || 28.6280}
+              customerLng={order.deliveryLng || 77.3649}
+              customerAddress={order.deliveryAddress}
+              orderStatus={order.status}
+              riderName={order.riderName}
+            />
+          </div>
+        )}
+
         {/* ORDER PROGRESS STATE MACHINE */}
         <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs mb-6">
           <h2 className="text-sm font-bold text-stone-900 mb-6 flex items-center gap-2">
@@ -221,7 +287,6 @@ export const OrderTrackingPage: React.FC = () => {
 
                 return (
                   <div key={s.status} className="relative flex items-start gap-3">
-                    {/* Circle Indicator */}
                     <div
                       className={`absolute -left-6 mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-xs ${
                         isPassed
@@ -253,6 +318,67 @@ export const OrderTrackingPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* ⭐ RATE YOUR MEAL SECTION (SHOWN WHEN DELIVERED) */}
+        {order.status === 'DELIVERED' && (
+          <div className="bg-white rounded-3xl p-6 border-2 border-orange-200 shadow-sm mb-6">
+            <h2 className="text-base font-bold text-stone-900 flex items-center gap-2 mb-1">
+              <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+              <span>How was your home-cooked meal?</span>
+            </h2>
+            <p className="text-xs text-stone-500 mb-4">
+              Your feedback directly supports <strong>Chef {order.kitchenName}</strong>!
+            </p>
+
+            {reviewSubmitted ? (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-2xl text-xs font-bold text-center">
+                ✨ Thank you for your review! Your feedback helps your local home cook grow.
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitReview} className="space-y-4">
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      type="button"
+                      key={star}
+                      onClick={() => setRating(star)}
+                      className="p-1 cursor-pointer transition-transform hover:scale-110"
+                    >
+                      <Star
+                        className={`w-7 h-7 ${
+                          rating >= star
+                            ? 'text-amber-500 fill-amber-500'
+                            : 'text-stone-300'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  <span className="text-xs font-bold text-stone-700 ml-2">
+                    {rating} of 5 Stars
+                  </span>
+                </div>
+
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Share details about taste, spices, packaging, and warmth..."
+                  className="w-full text-xs p-3 rounded-xl border border-stone-200 focus:outline-none focus:border-orange-500"
+                  rows={3}
+                  required
+                />
+
+                <button
+                  type="submit"
+                  disabled={isSubmittingReview || !comment.trim()}
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{isSubmittingReview ? 'Submitting...' : 'Submit Cook Review'}</span>
+                </button>
+              </form>
+            )}
+          </div>
+        )}
 
         {/* ORDER ITEMS BREAKDOWN */}
         <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs">

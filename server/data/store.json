@@ -48,8 +48,8 @@
       "isOnline": true,
       "currentLat": 28.631,
       "currentLng": 77.368,
-      "earnings": 400,
-      "totalDeliveries": 10
+      "earnings": 440,
+      "totalDeliveries": 11
     },
     {
       "id": "usr-admin-1",
@@ -84,8 +84,8 @@
       "isVerified": true,
       "prepTimeMinutes": 25,
       "startingPrice": 90,
-      "rating": 4.9,
-      "totalRatings": 42
+      "rating": 5,
+      "totalRatings": 1
     },
     {
       "id": "ktch-2",
@@ -136,6 +136,31 @@
       "startingPrice": 85,
       "rating": 4.7,
       "totalRatings": 28
+    },
+    {
+      "id": "ktch-904506dd",
+      "ownerId": "usr-cook-1",
+      "name": "Vaishno Rasoi Test",
+      "cookName": "Kamla Devi",
+      "phone": "+91 98999 11223",
+      "description": "Pure satvik meal preparation",
+      "addressText": "Flat 101, Shanti Enclave, Noida",
+      "latitude": 28.6295,
+      "longitude": 77.366,
+      "cuisineTypes": [
+        "North Indian",
+        "Jain Friendly"
+      ],
+      "bannerUrl": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=800&q=80",
+      "avatarUrl": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=200&q=80",
+      "isVegOnly": true,
+      "isOpen": true,
+      "isVerified": true,
+      "prepTimeMinutes": 20,
+      "startingPrice": 80,
+      "rating": 4.8,
+      "totalRatings": 1,
+      "createdAt": "2026-10-20T16:26:37.341Z"
     }
   ],
   "menuItems": [
@@ -150,7 +175,7 @@
       "isVeg": true,
       "isAvailable": true,
       "dailyQuantity": 30,
-      "soldQuantity": 16
+      "soldQuantity": 18
     },
     {
       "id": "menu-102",
@@ -257,6 +282,20 @@
       "dailyQuantity": 15,
       "soldQuantity": 1,
       "createdAt": "2026-10-20T16:06:42.927Z"
+    },
+    {
+      "id": "menu-08c93e8b",
+      "kitchenId": "ktch-1",
+      "name": "Ghar Ka Paneer Tikka (Test)",
+      "description": "Roasted paneer cubes with capsicum",
+      "price": 150,
+      "category": "Daily Specials",
+      "imageUrl": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=500&q=80",
+      "isVeg": true,
+      "isAvailable": true,
+      "dailyQuantity": 15,
+      "soldQuantity": 1,
+      "createdAt": "2026-10-20T16:26:37.296Z"
     }
   ],
   "orders": [
@@ -505,6 +544,98 @@
           "timestamp": "2026-10-20T16:06:42.975Z"
         }
       ]
+    },
+    {
+      "id": "ord-96263afa",
+      "orderNumber": "GKR-2026-3881",
+      "customerId": "usr-customer-1",
+      "customerName": "Aarav Sharma",
+      "customerPhone": "+91 98765 43210",
+      "kitchenId": "ktch-1",
+      "kitchenName": "Maa Ka Pyaar Rasoi",
+      "items": [
+        {
+          "id": "menu-101",
+          "name": "Special Homely Rajma Chawal Combo",
+          "price": 120,
+          "quantity": 2,
+          "totalPrice": 240
+        },
+        {
+          "id": "menu-08c93e8b",
+          "name": "Ghar Ka Paneer Tikka (Test)",
+          "price": 150,
+          "quantity": 1,
+          "totalPrice": 150
+        }
+      ],
+      "subtotal": 390,
+      "deliveryFee": 30,
+      "platformFee": 10,
+      "tax": 0,
+      "totalAmount": 430,
+      "status": "DELIVERED",
+      "deliveryAddress": "Boys Hostel Room 304, Sector 62, Noida",
+      "deliveryLat": 28.628,
+      "deliveryLng": 77.3649,
+      "specialInstructions": "Test order: extra chutney please",
+      "deliveryOtp": "8097",
+      "riderId": "usr-rider-1",
+      "riderName": "Vikram Singh",
+      "paymentStatus": "SUCCESS",
+      "paymentMethod": "UPI",
+      "createdAt": "2026-10-20T16:26:37.302Z",
+      "updatedAt": "2026-10-20T16:26:37.327Z",
+      "events": [
+        {
+          "id": "evt-25f23b",
+          "status": "AWAITING_KITCHEN",
+          "note": "Order placed by customer and sent to kitchen for confirmation.",
+          "timestamp": "2026-10-20T16:26:37.302Z"
+        },
+        {
+          "id": "evt-31b5db",
+          "status": "ACCEPTED",
+          "note": "Status updated to ACCEPTED",
+          "timestamp": "2026-10-20T16:26:37.306Z"
+        },
+        {
+          "id": "evt-24c3a4",
+          "status": "PREPARING",
+          "note": "Status updated to PREPARING",
+          "timestamp": "2026-10-20T16:26:37.309Z"
+        },
+        {
+          "id": "evt-ff6b2b",
+          "status": "PACKED",
+          "note": "Status updated to PACKED",
+          "timestamp": "2026-10-20T16:26:37.311Z"
+        },
+        {
+          "id": "evt-0b6b61",
+          "status": "RIDER_ASSIGNED",
+          "note": "Delivery partner Vikram Singh accepted the order assignment.",
+          "timestamp": "2026-10-20T16:26:37.314Z"
+        },
+        {
+          "id": "evt-c41fb4",
+          "status": "PICKED_UP",
+          "note": "Food picked up from home kitchen by delivery partner.",
+          "timestamp": "2026-10-20T16:26:37.319Z"
+        },
+        {
+          "id": "evt-ed4ea0",
+          "status": "OUT_FOR_DELIVERY",
+          "note": "Delivery partner is on the way to your location.",
+          "timestamp": "2026-10-20T16:26:37.323Z"
+        },
+        {
+          "id": "evt-d43712",
+          "status": "DELIVERED",
+          "note": "Order delivered successfully. Verified via OTP.",
+          "timestamp": "2026-10-20T16:26:37.327Z"
+        }
+      ]
     }
   ],
   "subscriptions": [
@@ -552,6 +683,36 @@
       "totalAmount": 2700,
       "dietaryNotes": "Pure veg test subscription",
       "createdAt": "2026-10-20T16:06:42.979Z"
+    },
+    {
+      "id": "sub-6d2d9237",
+      "customerId": "usr-customer-1",
+      "customerName": "Aarav Sharma",
+      "kitchenId": "ktch-1",
+      "kitchenName": "Maa Ka Pyaar Rasoi",
+      "planType": "MONTHLY",
+      "mealSlot": "LUNCH",
+      "startDate": "2026-10-20",
+      "endDate": "2026-11-19",
+      "status": "PAUSED",
+      "totalAmount": 2700,
+      "dietaryNotes": "Pure veg test subscription",
+      "createdAt": "2026-10-20T16:26:37.330Z",
+      "skippedDates": [
+        "2026-10-22"
+      ]
+    }
+  ],
+  "reviews": [
+    {
+      "id": "rev-db1b3a6b",
+      "orderId": "ord-96263afa",
+      "kitchenId": "ktch-1",
+      "customerId": "usr-customer-1",
+      "customerName": "Aarav Sharma",
+      "rating": 5,
+      "comment": "Outstanding homestyle taste! Perfectly cooked phulkas and fresh dal.",
+      "createdAt": "2026-10-20T16:26:37.334Z"
     }
   ]
 }

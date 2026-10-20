@@ -316,6 +316,28 @@ const INITIAL_SEED = {
       dietaryNotes: "Pure veg, no garlic preferred in dal",
       createdAt: new Date(Date.now() - 48 * 3600 * 1000).toISOString()
     }
+  ],
+  reviews: [
+    {
+      id: "rev-1",
+      orderId: "ord-1001",
+      kitchenId: "ktch-1",
+      customerId: "usr-customer-1",
+      customerName: "Aarav Sharma",
+      rating: 5,
+      comment: "Tasted just like mom's cooking! The rajma was soft, mild on spices, and the phulkas were warm and soft. Zero acidity.",
+      createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString()
+    },
+    {
+      id: "rev-2",
+      orderId: "ord-1000",
+      kitchenId: "ktch-2",
+      customerId: "usr-customer-1",
+      customerName: "Pooja V.",
+      rating: 5,
+      comment: "Extremely clean and authentic Gujarati taste. Loved the soft theplas and sev tameta curry.",
+      createdAt: new Date(Date.now() - 48 * 3600 * 1000).toISOString()
+    }
   ]
 };
 
@@ -607,6 +629,40 @@ class DataStore {
     this.data.subscriptions.push(newSub);
     this.save();
     return newSub;
+  }
+
+  // --- Reviews ---
+  getReviews(kitchenId) {
+    if (!this.data.reviews) this.data.reviews = [];
+    if (!kitchenId) return this.data.reviews;
+    return this.data.reviews.filter(r => r.kitchenId === kitchenId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+
+  createReview(reviewData) {
+    if (!this.data.reviews) this.data.reviews = [];
+    const newRev = {
+      id: 'rev-' + uuidv4().slice(0, 8),
+      orderId: reviewData.orderId,
+      kitchenId: reviewData.kitchenId,
+      customerId: reviewData.customerId,
+      customerName: reviewData.customerName || 'Verified Customer',
+      rating: Number(reviewData.rating) || 5,
+      comment: reviewData.comment || 'Delicious homemade food!',
+      createdAt: new Date().toISOString()
+    };
+    this.data.reviews.push(newRev);
+
+    // Recalculate kitchen rating dynamically
+    const kitchen = this.getKitchenById(reviewData.kitchenId);
+    if (kitchen) {
+      const kitchenReviews = this.data.reviews.filter(r => r.kitchenId === kitchen.id);
+      const totalStars = kitchenReviews.reduce((sum, r) => sum + r.rating, 0);
+      kitchen.totalRatings = kitchenReviews.length;
+      kitchen.rating = Math.round((totalStars / kitchenReviews.length) * 10) / 10;
+    }
+
+    this.save();
+    return newRev;
   }
 }
 

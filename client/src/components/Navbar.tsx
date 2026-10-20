@@ -81,6 +81,13 @@ export const Navbar: React.FC = () => {
             >
               My Orders
             </Link>
+            <Link
+              to="/cook/register"
+              className="text-sm font-medium text-orange-700 hover:text-orange-800 flex items-center gap-1.5 transition-colors"
+            >
+              <ChefHat className="w-4 h-4 text-orange-500" />
+              <span>Become a Cook</span>
+            </Link>
 
             {/* Role Dedicated Dashboards */}
             {role === 'COOK' && (

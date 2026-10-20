@@ -220,8 +220,64 @@ async function runTests() {
     assert(adminMetrics.completedOrders >= 1);
     console.log(`   ✅ Admin metrics verified: GMV ₹${adminMetrics.totalRevenue}, Platform Commission ₹${adminMetrics.platformCommission}.`);
 
+    // 10. Reviews & Rating Recalculation
+    console.log('\n🔟 Testing Customer Reviews & Dynamic Star Rating Recalculation...');
+    const resReview = await fetch(`${baseUrl}/api/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: order.id,
+        kitchenId: targetKitchen.id,
+        customerId: 'usr-customer-1',
+        customerName: 'Aarav Sharma',
+        rating: 5,
+        comment: 'Outstanding homestyle taste! Perfectly cooked phulkas and fresh dal.'
+      })
+    });
+    assert.strictEqual(resReview.status, 201);
+    const revJson = await resReview.json();
+    assert.strictEqual(revJson.review.rating, 5);
+
+    const resUpdatedKitchen = await fetch(`${baseUrl}/api/kitchens/${targetKitchen.id}`);
+    const updatedKitchenData = await resUpdatedKitchen.json();
+    assert(updatedKitchenData.totalRatings >= 1);
+    console.log(`   ✅ Review submitted successfully! Kitchen now has ${updatedKitchenData.totalRatings} ratings with average ${updatedKitchenData.rating} ★.`);
+
+    // 11. Subscription Actions (Pause & Skip)
+    console.log('\n1️⃣1️⃣ Testing Subscription Pause & Skip Tomorrow...');
+    const resPause = await fetch(`${baseUrl}/api/subscriptions/${subData.subscription.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'PAUSED', skippedDate: '2026-10-22' })
+    });
+    assert.strictEqual(resPause.status, 200);
+    const pauseJson = await resPause.json();
+    assert.strictEqual(pauseJson.subscription.status, 'PAUSED');
+    console.log('   ✅ Subscription paused and tomorrow\'s meal skipped successfully.');
+
+    // 12. Home Cook Onboarding
+    console.log('\n1️⃣2️⃣ Testing Home Cook Onboarding Wizard...');
+    const resOnboard = await fetch(`${baseUrl}/api/kitchens`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Vaishno Rasoi Test',
+        cookName: 'Kamla Devi',
+        phone: '+91 98999 11223',
+        description: 'Pure satvik meal preparation',
+        addressText: 'Flat 101, Shanti Enclave, Noida',
+        cuisineTypes: ['North Indian', 'Jain Friendly'],
+        isVegOnly: true,
+        prepTimeMinutes: 20
+      })
+    });
+    assert.strictEqual(resOnboard.status, 201);
+    const onboardJson = await resOnboard.json();
+    assert.strictEqual(onboardJson.kitchen.name, 'Vaishno Rasoi Test');
+    console.log(`   ✅ Onboarded new home cook kitchen: "${onboardJson.kitchen.name}".`);
+
     console.log('\n======================================================');
-    console.log('🎉 ALL INTEGRATION TESTS PASSED WITH 100% SUCCESS!');
+    console.log('🎉 ALL 12 INTEGRATION TESTS PASSED WITH 100% SUCCESS!');
     console.log('======================================================\n');
   } catch (err) {
     console.error('\n❌ TEST FAILURE:', err);
