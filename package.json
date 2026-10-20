@@ -5,9 +5,18 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "node server.js",
+    "dev:client": "npm run dev --prefix client",
+    "build:client": "npm run build --prefix client",
+    "build": "npm run build:client",
+    "test": "node test_integration.js"
   },
-  "keywords": ["food-delivery", "ghar-ki-rasoi", "express", "supabase"],
+  "keywords": [
+    "food-delivery",
+    "ghar-ki-rasoi",
+    "express",
+    "supabase"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -15,6 +24,11 @@
     "cors": "^2.8.5",
     "dotenv": "^18.0.6",
     "express": "^5.1.0",
-    "postgres": "^3.4.7"
+    "postgres": "^3.4.7",
+    "uuid": "^14.0.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0"
   }
 }
