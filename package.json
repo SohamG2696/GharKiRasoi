@@ -1,0 +1,20 @@
+{
+  "name": "gharkirasoi",
+  "version": "1.0.0",
+  "description": "Ghar Ki Rasoi - Homemade food ordering and delivery platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["food-delivery", "ghar-ki-rasoi", "express", "supabase"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.75.0",
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.6",
+    "express": "^5.1.0",
+    "postgres": "^3.4.7"
+  }
+}

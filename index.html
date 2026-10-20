@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ghar Ki Rasoi 🍱</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <header>
+    <h1>🍛 Ghar Ki Rasoi</h1>
+    <p>Bringing the warmth of home-cooked food to your table</p>
+  </header>
+
+  <!-- Home Section -->
+  <section id="home" class="visible">
+    <div class="role-buttons">
+      <button id="chefBtn" onclick="showSection('chefFormSection')">👨‍🍳 Chef</button>
+      <button id="customerBtn" onclick="showSection('customerFormSection')">🧍‍♀️ Customer</button>
+      <button id="deliveryBtn" onclick="showSection('deliveryFormSection')">🚴 Delivery Partner</button>
+    </div>
+  </section>
+  <!-- Chef registration section (form) -->
+  <section id="chefFormSection" class="hidden">
+    <h2>👨‍🍳 Chef Registration</h2>
+    <form id="chefForm">
+      <input type="text" id="kitchenName" name="kitchenName" placeholder="Kitchen Name" required />
+      <input type="text" id="chefName" name="chefName" placeholder="Chef Name" required />
+      <input type="text" id="chefPhone" name="chefPhone" placeholder="Phone Number" required />
+      <input type="text" id="chefLocation" name="location" placeholder="Exact Location" required />
+      <button type="submit">Register Kitchen</button>
+    </form>
+    <button class="back-btn" onclick="goHome()">⬅ Back</button>
+  </section>
+
+  <!-- Menu section (chef adds menu) -->
+  <section id="menuSection" class="hidden">
+    <h3>Today's Menu</h3>
+    <form id="menuForm">
+      <input type="text" id="sabzi" name="sabzi" placeholder="Sabzi" />
+      <input type="text" id="roti" name="roti" placeholder="Roti" />
+      <input type="text" id="rice" name="rice" placeholder="Rice" />
+      <input type="text" id="daal" name="daal" placeholder="Daal" />
+      <input type="text" id="side" name="side" placeholder="Side (optional)" />
+      <input type="text" id="drink" name="drink" placeholder="Drink (optional)" />
+      <button type="submit">Save Menu</button>
+    </form>
+    <button class="back-btn" onclick="goHome()">⬅ Back</button>
+  </section>
+
+  <!-- Customer search section -->
+  <section id="customerFormSection" class="hidden">
+    <h2>🧍‍♀️ Customer</h2>
+    <form id="customerForm">
+      <input type="text" id="custName" name="custName" placeholder="Your Name" required />
+      <input type="text" id="custPhone" name="custPhone" placeholder="Phone Number" required />
+      <input type="text" id="custLocation" name="location" placeholder="Your Location" required />
+      <button type="submit">Find Chefs</button>
+    </form>
+    <section id="customerChefList" class="hidden">
+      <h3>Available Chefs</h3>
+      <div id="chefCards"></div>
+    </section>
+    <section id="orderSection" class="hidden">
+      <h3>Customize Your Order</h3>
+      <div id="menuItems"></div>
+      <form id="orderForm">
+        <input type="text" id="orderChefName" name="orderChefName" readonly />
+        <input type="text" id="custNameOrder" name="custName" placeholder="Your Name" />
+        <input type="number" id="quantity" name="quantity" value="1" min="1" />
+        <textarea id="note" name="note" placeholder="Special requests..."></textarea>
+        <button type="submit">Place Order</button>
+      </form>
+      <div id="qrSection" class="hidden">
+        <p>Scan to Pay</p>
+        <div id="qrBox">
+          <img id="qrImage" src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Payment%20for%20Ghar%20Ki%20Rasoi" alt="QR Code" />
+        </div>
+        <button onclick="confirmPayment()">OK</button>
+      </div>
+    </section>
+    <button class="back-btn" onclick="goHome()">⬅ Back</button>
+  </section>
+
+  <!-- Delivery Partner Section -->
+  <section id="deliveryFormSection" class="hidden">
+    <h2>🚴 Delivery Partner</h2>
+    <form id="deliveryForm">
+      <input type="text" id="delName" name="delName" placeholder="Your Name" required />
+      <input type="text" id="delPhone" name="delPhone" placeholder="Phone Number" required />
+      <input type="text" id="delLocation" name="location" placeholder="Your Area" required />
+      <button type="submit">Show Orders</button>
+    </form>
+
+    <section id="deliveryOrders" class="hidden">
+      <h3>Orders Ready for Delivery</h3>
+      <div id="deliveryList">
+        <div id="ordersToDeliver"></div>
+      </div>
+    </section>
+
+    <button class="back-btn" onclick="goHome()">⬅ Back</button>
+  </section>
+
+  <footer>
+    <p>© 2025 Ghar Ki Rasoi | Made with ❤️ for homemade food lovers</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
