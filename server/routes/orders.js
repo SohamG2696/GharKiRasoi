@@ -23,11 +23,11 @@ const orderPlacementSchema = z.object({
 });
 
 // POST /api/orders - Place Order with Server-Side Price Recalculation
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const validated = orderPlacementSchema.parse(req.body);
 
-    const kitchen = store.getKitchenById(validated.kitchenId);
+    const kitchen = await store.getKitchenById(validated.kitchenId);
     if (!kitchen) {
       return res.status(404).json({ message: 'Selected kitchen does not exist.' });
     }
@@ -41,7 +41,7 @@ router.post('/', (req, res) => {
     const populatedItems = [];
 
     for (const requestedItem of validated.items) {
-      const dbItem = store.getMenuItemById(requestedItem.id);
+      const dbItem = await store.getMenuItemById(requestedItem.id);
       if (!dbItem || dbItem.kitchenId !== kitchen.id) {
         return res.status(400).json({
           message: `Invalid item selected: ${requestedItem.id} is not available from this kitchen.`
@@ -71,7 +71,7 @@ router.post('/', (req, res) => {
     const tax = 0.00;
     const totalAmount = calculatedSubtotal + deliveryFee + platformFee + tax;
 
-    const newOrder = store.createOrder({
+    const newOrder = await store.createOrder({
       customerId: validated.customerId,
       customerName: validated.customerName,
       customerPhone: validated.customerPhone,
@@ -103,10 +103,10 @@ router.post('/', (req, res) => {
 });
 
 // GET /api/orders - List orders with filters (customer, kitchen, status)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { customerId, kitchenId, status } = req.query;
-    const orders = store.getOrders({ customerId, kitchenId, status });
+    const orders = await store.getOrders({ customerId, kitchenId, status });
     res.json(orders);
   } catch (err) {
     res.status(500).json({ message: 'Failed to retrieve orders', error: err.message });
@@ -114,10 +114,21 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/orders/:id - Single order details with live event history
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const order = store.getOrderById(req.params.id);
+    const order = await store.getOrderById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    // Requirement 5: Audit delivery OTP exposure.
+    // If request indicates rider or cook role, redact deliveryOtp!
+    const requesterRole = req.headers['x-user-role'] || req.headers['x-demo-role'] || req.query.role;
+    const requesterId = req.headers['x-user-id'] || req.query.userId;
+
+    if (requesterRole === 'DELIVERY_PARTNER' || requesterRole === 'COOK') {
+      const { deliveryOtp, ...safeOrder } = order;
+      return res.json(safeOrder);
+    }
+
     res.json(order);
   } catch (err) {
     res.status(500).json({ message: 'Failed to retrieve order', error: err.message });
@@ -139,10 +150,10 @@ const VALID_TRANSITIONS = {
   'CANCELLED': []
 };
 
-router.patch('/:id/status', (req, res) => {
+router.patch('/:id/status', async (req, res) => {
   try {
     const { status, note, actorRole, rejectionReason } = req.body;
-    const order = store.getOrderById(req.params.id);
+    const order = await store.getOrderById(req.params.id);
     if (!order) return res.status(404).json({ message: 'Order not found' });
 
     const currentStatus = order.status;
@@ -158,7 +169,7 @@ router.patch('/:id/status', (req, res) => {
       return res.status(400).json({ message: 'Rejection reason is required.' });
     }
 
-    const updated = store.updateOrderStatus(
+    const updated = await store.updateOrderStatus(
       order.id,
       status,
       note || (status === 'REJECTED' ? `Order rejected: ${rejectionReason}` : `Status updated to ${status}`),

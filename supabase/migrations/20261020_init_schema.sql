@@ -1,12 +1,37 @@
--- Ghar Ki Rasoi: PostgreSQL & PostGIS Schema
+-- Ghar Ki Rasoi: PostgreSQL & PostGIS Schema (Idempotent)
 -- Enables spatial discovery, dynamic menus, RBAC, orders, payments, subscriptions & delivery
+
+BEGIN;
+
+-- Safety check: if legacy orders table with integer/bigint exists and wasn't renamed yet,
+-- archive it safely so UUID foreign key creation does not fail.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+      AND table_name = 'orders' 
+      AND data_type IN ('bigint', 'integer')
+  ) AND NOT EXISTS (
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_schema = 'public' AND table_name = 'archive_legacy_orders'
+  ) THEN
+    CREATE TABLE IF NOT EXISTS public.legacy_backup_orders AS SELECT * FROM public.orders;
+    ALTER TABLE public.orders RENAME TO archive_legacy_orders;
+    RAISE NOTICE 'Preserved legacy orders table (bigint ID) to archive_legacy_orders.';
+  END IF;
+END $$;
 
 -- 1. Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "postgis";
 
 -- 2. User Roles Enum & Table
-CREATE TYPE app_role AS ENUM ('CUSTOMER', 'COOK', 'DELIVERY_PARTNER', 'ADMIN');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
+    CREATE TYPE app_role AS ENUM ('CUSTOMER', 'COOK', 'DELIVERY_PARTNER', 'ADMIN');
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -87,21 +112,27 @@ CREATE TABLE IF NOT EXISTS customer_addresses (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE INDEX IF NOT EXISTS idx_customer_addresses_customer ON customer_addresses(customer_id);
+
 -- 6. Orders
-CREATE TYPE order_status AS ENUM (
-  'PLACED',
-  'AWAITING_KITCHEN',
-  'ACCEPTED',
-  'PREPARING',
-  'PACKED',
-  'RIDER_ASSIGNED',
-  'PICKED_UP',
-  'OUT_FOR_DELIVERY',
-  'ARRIVED_AT_CUSTOMER',
-  'DELIVERED',
-  'REJECTED',
-  'CANCELLED'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_status') THEN
+    CREATE TYPE order_status AS ENUM (
+      'PLACED',
+      'AWAITING_KITCHEN',
+      'ACCEPTED',
+      'PREPARING',
+      'PACKED',
+      'RIDER_ASSIGNED',
+      'PICKED_UP',
+      'OUT_FOR_DELIVERY',
+      'ARRIVED_AT_CUSTOMER',
+      'DELIVERED',
+      'REJECTED',
+      'CANCELLED'
+    );
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -141,6 +172,8 @@ CREATE TABLE IF NOT EXISTS order_items (
   total_price NUMERIC(10, 2) NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+
 -- 8. Order Status Events (Audit & Tracking Timeline)
 CREATE TABLE IF NOT EXISTS order_events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -152,8 +185,14 @@ CREATE TABLE IF NOT EXISTS order_events (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE INDEX IF NOT EXISTS idx_order_events_order ON order_events(order_id);
+
 -- 9. Payments
-CREATE TYPE payment_status AS ENUM ('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_status') THEN
+    CREATE TYPE payment_status AS ENUM ('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED');
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -168,6 +207,8 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_payments_order ON payments(order_id);
 
 -- 10. Delivery Partners
 CREATE TABLE IF NOT EXISTS delivery_partners (
@@ -187,9 +228,14 @@ CREATE TABLE IF NOT EXISTS delivery_partners (
 );
 
 CREATE INDEX IF NOT EXISTS idx_delivery_partners_geom ON delivery_partners USING GIST(current_geom);
+CREATE INDEX IF NOT EXISTS idx_delivery_partners_user ON delivery_partners(user_id);
 
 -- 11. Delivery Assignments (With Atomic Assignment)
-CREATE TYPE assignment_status AS ENUM ('OFFERED', 'ACCEPTED', 'PICKED_UP', 'DELIVERED', 'CANCELLED');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'assignment_status') THEN
+    CREATE TYPE assignment_status AS ENUM ('OFFERED', 'ACCEPTED', 'PICKED_UP', 'DELIVERED', 'CANCELLED');
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS delivery_assignments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -202,10 +248,27 @@ CREATE TABLE IF NOT EXISTS delivery_assignments (
   delivered_at TIMESTAMPTZ
 );
 
+CREATE INDEX IF NOT EXISTS idx_delivery_assignments_order ON delivery_assignments(order_id);
+CREATE INDEX IF NOT EXISTS idx_delivery_assignments_partner ON delivery_assignments(partner_id);
+
 -- 12. Tiffin Subscriptions
-CREATE TYPE subscription_plan AS ENUM ('WEEKLY', 'MONTHLY');
-CREATE TYPE meal_slot AS ENUM ('LUNCH', 'DINNER', 'BOTH');
-CREATE TYPE subscription_status AS ENUM ('ACTIVE', 'PAUSED', 'EXPIRED', 'CANCELLED');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'subscription_plan') THEN
+    CREATE TYPE subscription_plan AS ENUM ('WEEKLY', 'MONTHLY');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'meal_slot') THEN
+    CREATE TYPE meal_slot AS ENUM ('LUNCH', 'DINNER', 'BOTH');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'subscription_status') THEN
+    CREATE TYPE subscription_status AS ENUM ('ACTIVE', 'PAUSED', 'EXPIRED', 'CANCELLED');
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -221,16 +284,23 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE INDEX IF NOT EXISTS idx_subscriptions_customer ON subscriptions(customer_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_kitchen ON subscriptions(kitchen_id);
+
 -- 13. Reviews & Ratings
 CREATE TABLE IF NOT EXISTS reviews (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  order_id UUID NOT NULL REFERENCES orders(id),
+  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
   customer_id UUID NOT NULL REFERENCES profiles(id),
   kitchen_id UUID NOT NULL REFERENCES kitchens(id),
   rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
   comment TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT uq_reviews_order UNIQUE(order_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_reviews_kitchen ON reviews(kitchen_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_customer ON reviews(customer_id);
 
 -- 14. PostGIS Geometry Trigger for Kitchens
 CREATE OR REPLACE FUNCTION update_kitchen_geom()
@@ -241,9 +311,11 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public, extensions, pg_temp;
 
 DROP TRIGGER IF EXISTS trg_update_kitchen_geom ON kitchens;
 CREATE TRIGGER trg_update_kitchen_geom
 BEFORE INSERT OR UPDATE OF latitude, longitude ON kitchens
 FOR EACH ROW EXECUTE FUNCTION update_kitchen_geom();
+
+COMMIT;

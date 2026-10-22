@@ -16,10 +16,10 @@ const subscriptionSchema = z.object({
 });
 
 // GET /api/subscriptions
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { customerId, kitchenId } = req.query;
-    const subs = store.getSubscriptions({ customerId, kitchenId });
+    const subs = await store.getSubscriptions({ customerId, kitchenId });
     res.json(subs);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch subscriptions', error: err.message });
@@ -27,10 +27,10 @@ router.get('/', (req, res) => {
 });
 
 // POST /api/subscriptions
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const validated = subscriptionSchema.parse(req.body);
-    const kitchen = store.getKitchenById(validated.kitchenId);
+    const kitchen = await store.getKitchenById(validated.kitchenId);
     if (!kitchen) return res.status(404).json({ message: 'Kitchen not found' });
 
     // Calculate plan pricing
@@ -44,7 +44,7 @@ router.post('/', (req, res) => {
     const start = new Date(validated.startDate);
     const end = new Date(start.getTime() + days * 24 * 3600 * 1000);
 
-    const newSub = store.createSubscription({
+    const newSub = await store.createSubscription({
       ...validated,
       kitchenName: kitchen.name,
       endDate: end.toISOString().split('T')[0],
@@ -64,20 +64,10 @@ router.post('/', (req, res) => {
 });
 
 // PATCH /api/subscriptions/:id - Pause, resume or skip date
-router.patch('/:id', (req, res) => {
+router.patch('/:id', async (req, res) => {
   try {
     const { status, skippedDate } = req.body;
-    const sub = store.data.subscriptions.find(s => s.id === req.params.id);
-    if (!sub) return res.status(404).json({ message: 'Subscription not found' });
-
-    if (status) sub.status = status;
-    if (skippedDate) {
-      if (!sub.skippedDates) sub.skippedDates = [];
-      if (!sub.skippedDates.includes(skippedDate)) {
-        sub.skippedDates.push(skippedDate);
-      }
-    }
-    store.save();
+    const sub = await store.updateSubscription(req.params.id, { status, skippedDate });
     res.json({ message: 'Subscription updated', subscription: sub });
   } catch (err) {
     res.status(500).json({ message: 'Failed to update subscription', error: err.message });

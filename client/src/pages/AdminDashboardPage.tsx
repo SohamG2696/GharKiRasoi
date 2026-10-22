@@ -38,8 +38,13 @@ export const AdminDashboardPage: React.FC = () => {
 
   useEffect(() => {
     fetchAdminData();
-    const interval = setInterval(fetchAdminData, 5000);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchAdminData, 3000);
+    const handlePushEvent = () => fetchAdminData();
+    window.addEventListener('gkr_order_update', handlePushEvent);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('gkr_order_update', handlePushEvent);
+    };
   }, []);
 
   const handleToggleVerification = async (kitchenId: string, currentStatus: boolean) => {

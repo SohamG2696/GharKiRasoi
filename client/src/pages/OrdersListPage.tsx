@@ -1,5 +1,5 @@
 // client/src/pages/OrdersListPage.tsx - Customer Orders History
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingBag, ChevronRight, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -10,22 +10,30 @@ export const OrdersListPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadOrders() {
-      try {
-        const res = await fetch(`/api/orders?customerId=${user?.id || 'usr-customer-1'}`);
-        if (res.ok) {
-          const data = await res.json();
-          setOrders(data);
-        }
-      } catch (err) {
-        console.error('Failed to load customer orders:', err);
-      } finally {
-        setIsLoading(false);
+  const loadOrders = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/orders?customerId=${user?.id || 'usr-customer-1'}`);
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data);
       }
+    } catch (err) {
+      console.error('Failed to load customer orders:', err);
+    } finally {
+      setIsLoading(false);
     }
+  }, [user?.id]);
+
+  useEffect(() => {
     loadOrders();
-  }, [user]);
+    const interval = setInterval(loadOrders, 3000);
+    const handlePushEvent = () => loadOrders();
+    window.addEventListener('gkr_order_update', handlePushEvent);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('gkr_order_update', handlePushEvent);
+    };
+  }, [loadOrders]);
 
   return (
     <div className="min-h-screen bg-[#faf8f5] py-12">
@@ -64,7 +72,7 @@ export const OrdersListPage: React.FC = () => {
                 <div className="space-y-1.5 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-stone-900">{order.kitchenName}</span>
-                    <span className="text-xs text-stone-400">•</span>
+                    <span className="text-xs text-stone-400">·</span>
                     <span className="text-xs text-stone-500">{order.orderNumber}</span>
                     <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-orange-100 text-orange-900">
                       {order.status.replace(/_/g, ' ')}
@@ -75,19 +83,22 @@ export const OrdersListPage: React.FC = () => {
                     {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
                   </div>
 
-                  <div className="text-[11px] text-stone-400">
-                    Placed on {new Date(order.createdAt).toLocaleDateString()} at{' '}
-                    {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Paid ₹{order.totalAmount}
+                  <div className="flex items-center gap-4 text-[11px] text-stone-400 pt-1">
+                    <span>{new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>·</span>
+                    <span className="font-bold text-stone-700">₹{order.totalAmount}</span>
                   </div>
                 </div>
 
-                <Link
-                  to={`/order/${order.id}`}
-                  className="bg-orange-50 hover:bg-orange-600 hover:text-white text-orange-700 border border-orange-200 text-xs font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-1 shrink-0"
-                >
-                  <span>Track Live</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                  <Link
+                    to={`/order-tracking/${order.id}`}
+                    className="flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                  >
+                    View Status
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
               </div>
             ))}
           </div>
@@ -96,3 +107,4 @@ export const OrdersListPage: React.FC = () => {
     </div>
   );
 };
+export default OrdersListPage;

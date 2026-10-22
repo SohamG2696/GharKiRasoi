@@ -1,0 +1,122 @@
+{
+  "schemaAndTables": {
+    "profiles": {
+      "exists": true,
+      "rowCount": 7
+    },
+    "user_roles": {
+      "exists": true,
+      "rowCount": 12
+    },
+    "kitchens": {
+      "exists": true,
+      "rowCount": 6
+    },
+    "menu_items": {
+      "exists": true,
+      "rowCount": 13
+    },
+    "customer_addresses": {
+      "exists": true,
+      "rowCount": 0
+    },
+    "orders": {
+      "exists": true,
+      "rowCount": 9
+    },
+    "order_items": {
+      "exists": true,
+      "rowCount": 11
+    },
+    "order_events": {
+      "exists": true,
+      "rowCount": 45
+    },
+    "payments": {
+      "exists": true,
+      "rowCount": 0
+    },
+    "delivery_partners": {
+      "exists": true,
+      "rowCount": 3
+    },
+    "delivery_assignments": {
+      "exists": true,
+      "rowCount": 8
+    },
+    "subscriptions": {
+      "exists": true,
+      "rowCount": 4
+    },
+    "reviews": {
+      "exists": true,
+      "rowCount": 4
+    },
+    "postgisTrigger": {
+      "active": true,
+      "sample": "Annapurna Kitchen"
+    }
+  },
+  "liveCloudVsJson": {
+    "cloudMode": true,
+    "liveCloudOrders": 9,
+    "storeJsonOrders": 0,
+    "persistingToCloud": true
+  },
+  "roleAuth": {
+    "CUSTOMER": {
+      "success": true,
+      "userId": "eb262efa-88cf-43f6-bf81-f20fa6fe77a1",
+      "email": "customer@gharkirasoi.com",
+      "roles": [
+        "CUSTOMER"
+      ]
+    },
+    "COOK": {
+      "success": true,
+      "userId": "aeeab35c-cb24-48cc-91c2-63707b9fd2dc",
+      "email": "cook@gharkirasoi.com",
+      "roles": [
+        "CUSTOMER",
+        "COOK"
+      ]
+    },
+    "DELIVERY_PARTNER": {
+      "success": true,
+      "userId": "c3f4d72d-c2ef-4bfe-b338-e7790d4b83f5",
+      "email": "rider@gharkirasoi.com",
+      "roles": [
+        "CUSTOMER",
+        "DELIVERY_PARTNER"
+      ]
+    },
+    "ADMIN": {
+      "success": true,
+      "userId": "7591de88-361b-4e4d-a894-6ee08d0fda26",
+      "email": "admin@gharkirasoi.com",
+      "roles": [
+        "CUSTOMER",
+        "ADMIN"
+      ]
+    }
+  },
+  "roleEscalationPrevention": {
+    "insertAdminRole": {
+      "blocked": true,
+      "reason": "new row violates row-level security policy for table \"user_roles\"",
+      "code": "42501"
+    },
+    "approveKitchen": {
+      "blocked": true
+    }
+  },
+  "crossUserIsolation": {
+    "isolated": true,
+    "testedOrderId": "6006481d-2cb0-44a5-8dc1-2a45d5f38940"
+  },
+  "concurrencyRaceCondition": {
+    "testedOrderId": "e3178f04-724d-4788-b1a3-52d167982b51",
+    "winnerAssigned": "c3f4d72d-c2ef-4bfe-b338-e7790d4b83f5",
+    "conflictMessage": "This delivery has already been claimed by another rider."
+  }
+}

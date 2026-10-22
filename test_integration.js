@@ -25,7 +25,7 @@ async function runTests() {
     const kitchens = await resKitchens.json();
     assert(kitchens.length > 0, 'Should return at least 1 kitchen');
     assert(kitchens[0].distanceKm !== undefined, 'Should calculate distance');
-    const targetKitchen = kitchens[0];
+    const targetKitchen = kitchens.find(k => k.name.includes('Maa Ka Pyaar')) || kitchens.find(k => k.menuItems && k.menuItems.length > 0) || kitchens[0];
     console.log(`   ✅ Found ${kitchens.length} kitchens. Nearest: "${targetKitchen.name}" (${targetKitchen.distanceKm} km).`);
 
     // 3. Dynamic Menu Items
@@ -261,7 +261,7 @@ async function runTests() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: 'Vaishno Rasoi Test',
+        name: 'Vaishno Rasoi Test ' + Math.floor(Math.random() * 9000 + 1000),
         cookName: 'Kamla Devi',
         phone: '+91 98999 11223',
         description: 'Pure satvik meal preparation',
@@ -273,7 +273,7 @@ async function runTests() {
     });
     assert.strictEqual(resOnboard.status, 201);
     const onboardJson = await resOnboard.json();
-    assert.strictEqual(onboardJson.kitchen.name, 'Vaishno Rasoi Test');
+    assert(onboardJson.kitchen.name.startsWith('Vaishno Rasoi Test'));
     console.log(`   ✅ Onboarded new home cook kitchen: "${onboardJson.kitchen.name}".`);
 
     console.log('\n======================================================');

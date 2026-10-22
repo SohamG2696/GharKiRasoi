@@ -15,10 +15,10 @@ const reviewSchema = z.object({
 });
 
 // GET /api/reviews?kitchenId=ktch-1
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { kitchenId } = req.query;
-    const reviews = store.getReviews(kitchenId);
+    const reviews = await store.getReviews(kitchenId);
     res.json(reviews);
   } catch (err) {
     res.status(500).json({ message: 'Failed to retrieve reviews', error: err.message });
@@ -26,14 +26,14 @@ router.get('/', (req, res) => {
 });
 
 // POST /api/reviews - Submit review after delivery
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const validated = reviewSchema.parse({
       ...req.body,
       rating: Number(req.body.rating)
     });
 
-    const newReview = store.createReview(validated);
+    const newReview = await store.createReview(validated);
     res.status(201).json({
       message: 'Review submitted successfully! Thank you for supporting local home cooks.',
       review: newReview

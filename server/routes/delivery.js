@@ -2,15 +2,21 @@
 const express = require('express');
 const { z } = require('zod');
 const store = require('../dataStore');
+const { verifyRiderAssignment } = require('../supabaseService');
 
 const router = express.Router();
 
-// GET /api/delivery/available-orders - Orders ready for pickup and unassigned
-router.get('/available-orders', (req, res) => {
+// GET /api/delivery/available-orders - Orders ready for pickup and unassigned (NO dummy orders, only currently active)
+router.get('/available-orders', async (req, res) => {
   try {
-    const orders = store.getOrders().filter(o =>
-      (o.status === 'PACKED' || o.status === 'PREPARING') && !o.riderId
-    );
+    let orders = await store.getAvailableDeliveries();
+    // Exclude dummy test orders and only include orders that are actively ready for pickup
+    orders = (orders || []).filter(o => {
+      const orderNum = (o.orderNumber || o.id || '').toUpperCase();
+      const isTest = orderNum.includes('TEST') || orderNum.includes('ISO') || orderNum.includes('MOCK');
+      const isReadyStatus = o.status === 'PACKED' || o.status === 'READY_FOR_PICKUP';
+      return !isTest && isReadyStatus && !o.riderId;
+    });
     res.json(orders);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch available deliveries', error: err.message });
@@ -18,13 +24,18 @@ router.get('/available-orders', (req, res) => {
 });
 
 // GET /api/delivery/my-deliveries - Assigned deliveries for a rider
-router.get('/my-deliveries', (req, res) => {
+router.get('/my-deliveries', async (req, res) => {
   try {
     const { riderId } = req.query;
     if (!riderId) {
       return res.status(400).json({ message: 'riderId required' });
     }
-    const orders = store.getOrders().filter(o => o.riderId === riderId);
+    let orders = await store.getRiderDeliveries(riderId);
+    // Exclude dummy test orders
+    orders = (orders || []).filter(o => {
+      const orderNum = (o.orderNumber || o.id || '').toUpperCase();
+      return !orderNum.includes('TEST') && !orderNum.includes('ISO') && !orderNum.includes('MOCK');
+    });
     res.json(orders);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch rider deliveries', error: err.message });
@@ -32,108 +43,79 @@ router.get('/my-deliveries', (req, res) => {
 });
 
 // POST /api/delivery/accept - Atomic Rider Assignment
-router.post('/accept', (req, res) => {
+router.post('/accept', async (req, res) => {
   try {
     const { orderId, riderId, riderName } = req.body;
     if (!orderId || !riderId) {
       return res.status(400).json({ message: 'orderId and riderId required' });
     }
 
-    const result = store.assignRider(orderId, riderId, riderName || 'Rider Partner');
+    const result = await store.assignRider(orderId, riderId, riderName || 'Rider Partner');
     if (!result.success) {
-      return res.status(409).json({ message: result.message });
+      return res.status(409).json({ message: result.message || 'Order already claimed or unavailable' });
     }
 
-    res.json({ message: 'Order accepted for delivery successfully!', order: result.order });
+    res.json({
+      message: 'Delivery assignment confirmed!',
+      order: result.order
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to assign order', error: err.message });
+    res.status(500).json({ message: 'Failed to accept delivery', error: err.message });
   }
 });
 
-// POST /api/delivery/pickup - Rider picks up food from kitchen
-router.post('/pickup', (req, res) => {
+// POST /api/delivery/pickup - Mark picked up
+router.post('/pickup', async (req, res) => {
   try {
     const { orderId, riderId } = req.body;
-    const order = store.getOrderById(orderId);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-
-    if (order.riderId !== riderId) {
-      return res.status(403).json({ message: 'You are not assigned to this order.' });
-    }
-
-    const updated = store.updateOrderStatus(
-      order.id,
-      'PICKED_UP',
-      'Food picked up from home kitchen by delivery partner.',
-      'DELIVERY_PARTNER'
-    );
-
-    res.json({ message: 'Order marked as picked up!', order: updated });
+    const updated = await store.updateOrderStatus(orderId, 'PICKED_UP', riderId);
+    res.json({ message: 'Order marked as picked up', order: updated });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to update pickup status', error: err.message });
+    res.status(500).json({ message: 'Pickup update failed', error: err.message });
   }
 });
 
-// POST /api/delivery/out-for-delivery
-router.post('/out-for-delivery', (req, res) => {
+// POST /api/delivery/out-for-delivery - Transit started
+router.post('/out-for-delivery', async (req, res) => {
   try {
     const { orderId, riderId } = req.body;
-    const order = store.getOrderById(orderId);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-
-    if (order.riderId !== riderId) {
-      return res.status(403).json({ message: 'Unauthorized rider.' });
-    }
-
-    const updated = store.updateOrderStatus(
-      order.id,
-      'OUT_FOR_DELIVERY',
-      'Delivery partner is on the way to your location.',
-      'DELIVERY_PARTNER'
-    );
-
-    res.json({ message: 'Order is out for delivery!', order: updated });
+    const updated = await store.updateOrderStatus(orderId, 'OUT_FOR_DELIVERY', riderId);
+    res.json({ message: 'Order is out for delivery', order: updated });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to update status', error: err.message });
+    res.status(500).json({ message: 'Out for delivery update failed', error: err.message });
   }
 });
 
-// POST /api/delivery/complete - OTP Verified Delivery Completion
-router.post('/complete', (req, res) => {
+// POST /api/delivery/complete - OTP Verification & Order Completion
+const completeDeliverySchema = z.object({
+  orderId: z.string(),
+  riderId: z.string(),
+  otp: z.string().length(4)
+});
+
+router.post('/complete', async (req, res) => {
   try {
-    const { orderId, riderId, otp } = req.body;
-    const order = store.getOrderById(orderId);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
+    const validated = completeDeliverySchema.parse(req.body);
 
-    if (order.riderId !== riderId) {
-      return res.status(403).json({ message: 'Unauthorized delivery partner.' });
-    }
-
-    // Verify OTP
-    if (order.deliveryOtp && order.deliveryOtp !== otp?.trim()) {
-      return res.status(400).json({
-        message: 'Invalid Delivery OTP! Please ask the customer for the correct 4-digit OTP shown in their app.'
-      });
-    }
-
-    const updated = store.updateOrderStatus(
-      order.id,
-      'DELIVERED',
-      `Order delivered successfully. Verified via OTP.`,
-      'DELIVERY_PARTNER'
+    const completed = await store.completeDelivery(
+      validated.orderId,
+      validated.riderId,
+      validated.otp
     );
 
-    // Update rider earnings
-    const rider = store.findUserById(riderId);
-    if (rider) {
-      rider.earnings = (rider.earnings || 0) + 40;
-      rider.totalDeliveries = (rider.totalDeliveries || 0) + 1;
-      store.save();
-    }
-
-    res.json({ message: 'Delivery completed successfully! ₹40 added to earnings.', order: updated });
+    res.json({
+      success: true,
+      message: 'OTP verified successfully! Order delivered.',
+      order: completed
+    });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to complete delivery', error: err.message });
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ message: 'Invalid OTP format. Must be a 4-digit code.' });
+    }
+    if (err.message && err.message.toLowerCase().includes('otp')) {
+      return res.status(400).json({ message: err.message });
+    }
+    res.status(500).json({ message: 'Delivery completion failed', error: err.message });
   }
 });
 

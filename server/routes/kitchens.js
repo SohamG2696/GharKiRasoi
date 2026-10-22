@@ -7,8 +7,8 @@ const router = express.Router();
 
 // Helper: Haversine distance in km
 function calculateDistanceKm(lat1, lon1, lat2, lon2) {
-  if (!lat1 || !lon1 || !lat2 || !lon2) return 1.5; // fallback reasonable distance
-  const R = 6371; // Radius of Earth in km
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 1.5;
+  const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a =
@@ -19,14 +19,28 @@ function calculateDistanceKm(lat1, lon1, lat2, lon2) {
   return Math.round((R * c) * 10) / 10;
 }
 
-// GET /api/kitchens - Search, filter, distance
-router.get('/', (req, res) => {
+// GET /api/kitchens - Search, filter, distance (ONLY real registered kitchens displayed)
+router.get('/', async (req, res) => {
   try {
     const { lat, lng, q, vegOnly, cuisine, maxDistance } = req.query;
     const userLat = lat ? parseFloat(lat) : null;
     const userLng = lng ? parseFloat(lng) : null;
 
-    let kitchens = store.getKitchens();
+    let kitchens = [];
+    try {
+      kitchens = await store.getKitchens(req.query);
+    } catch (e) {
+      console.warn('store.getKitchens network issue, using cached registered kitchens:', e.message);
+      kitchens = store.data.kitchens;
+    }
+
+    // Filter out dummy/test kitchens - display ONLY real registered kitchens
+    kitchens = kitchens.filter(k => {
+      const name = (k.name || '').toLowerCase();
+      const cook = (k.cookName || '').toLowerCase();
+      const isDummy = name.includes('test') || cook.includes('test') || name.includes('mock') || name.includes('dummy') || name.includes('sample');
+      return !isDummy && k.isActive !== false;
+    });
 
     // Map distance & delivery time
     kitchens = kitchens.map(k => {
@@ -41,14 +55,14 @@ router.get('/', (req, res) => {
       };
     });
 
-    // Filters
+    // Search filters
     if (q) {
       const search = q.toLowerCase();
       kitchens = kitchens.filter(k =>
         k.name.toLowerCase().includes(search) ||
         k.cookName.toLowerCase().includes(search) ||
-        k.description.toLowerCase().includes(search) ||
-        k.cuisineTypes.some(c => c.toLowerCase().includes(search))
+        (k.description && k.description.toLowerCase().includes(search)) ||
+        (k.cuisineTypes && k.cuisineTypes.some(c => c.toLowerCase().includes(search)))
       );
     }
 
@@ -58,7 +72,7 @@ router.get('/', (req, res) => {
 
     if (cuisine) {
       kitchens = kitchens.filter(k =>
-        k.cuisineTypes.some(c => c.toLowerCase() === cuisine.toLowerCase())
+        k.cuisineTypes && k.cuisineTypes.some(c => c.toLowerCase() === cuisine.toLowerCase())
       );
     }
 
@@ -77,13 +91,23 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/kitchens/:id - Kitchen details with its menu items
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
-    const kitchen = store.getKitchenById(req.params.id);
+    let kitchen = null;
+    try {
+      kitchen = await store.getKitchenById(req.params.id);
+    } catch (_) {
+      kitchen = store.data.kitchens.find(k => k.id === req.params.id);
+    }
     if (!kitchen) {
       return res.status(404).json({ message: 'Kitchen not found' });
     }
-    const menuItems = store.getMenuItems(kitchen.id);
+    let menuItems = [];
+    try {
+      menuItems = await store.getMenuItems(kitchen.id);
+    } catch (_) {
+      menuItems = (store.data.menuItems || []).filter(m => m.kitchenId === kitchen.id);
+    }
     res.json({
       ...kitchen,
       menuItems
@@ -107,10 +131,10 @@ const kitchenSchema = z.object({
   prepTimeMinutes: z.number().optional()
 });
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const validated = kitchenSchema.parse(req.body);
-    const newKitchen = store.createKitchen({
+    const newKitchen = await store.createKitchen({
       ...validated,
       ownerId: req.body.ownerId || 'usr-cook-1'
     });
@@ -124,9 +148,9 @@ router.post('/', (req, res) => {
 });
 
 // PATCH /api/kitchens/:id - Update kitchen status (open/close)
-router.patch('/:id', (req, res) => {
+router.patch('/:id', async (req, res) => {
   try {
-    const updated = store.updateKitchen(req.params.id, req.body);
+    const updated = await store.updateKitchen(req.params.id, req.body);
     if (!updated) return res.status(404).json({ message: 'Kitchen not found' });
     res.json({ message: 'Kitchen updated successfully', kitchen: updated });
   } catch (err) {

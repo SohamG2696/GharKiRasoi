@@ -1,3 +1,5 @@
+const { isCloudMode } = require('./supabaseClient');
+const cloudService = require('./supabaseService');
 // server/dataStore.js - Resilient Persistence & Seed Engine for Ghar Ki Rasoi
 const fs = require('fs');
 const path = require('path');
@@ -395,15 +397,24 @@ class DataStore {
   }
 
   // --- Kitchens ---
-  getKitchens() {
+  async getKitchens(query) {
+    if (isCloudMode()) {
+      return cloudService.getKitchens(query);
+    }
     return this.data.kitchens;
   }
 
-  getKitchenById(id) {
+  async getKitchenById(id) {
+    if (isCloudMode()) {
+      return cloudService.getKitchenById(id);
+    }
     return this.data.kitchens.find(k => k.id === id);
   }
 
-  createKitchen(kitchenData) {
+  async createKitchen(kitchenData) {
+    if (isCloudMode()) {
+      return cloudService.createKitchen(kitchenData);
+    }
     const newKitchen = {
       id: 'ktch-' + uuidv4().slice(0, 8),
       ownerId: kitchenData.ownerId,
@@ -431,7 +442,10 @@ class DataStore {
     return newKitchen;
   }
 
-  updateKitchen(id, updateData) {
+  async updateKitchen(id, updateData) {
+    if (isCloudMode()) {
+      return cloudService.updateKitchen(id, updateData);
+    }
     const idx = this.data.kitchens.findIndex(k => k.id === id);
     if (idx === -1) return null;
     this.data.kitchens[idx] = { ...this.data.kitchens[idx], ...updateData };
@@ -440,16 +454,25 @@ class DataStore {
   }
 
   // --- Dynamic Menus ---
-  getMenuItems(kitchenId) {
+  async getMenuItems(kitchenId) {
+    if (isCloudMode()) {
+      return cloudService.getMenuItems(kitchenId);
+    }
     if (!kitchenId) return this.data.menuItems;
     return this.data.menuItems.filter(m => m.kitchenId === kitchenId);
   }
 
-  getMenuItemById(id) {
+  async getMenuItemById(id) {
+    if (isCloudMode()) {
+      return cloudService.getMenuItemById(id);
+    }
     return this.data.menuItems.find(m => m.id === id);
   }
 
-  createMenuItem(itemData) {
+  async createMenuItem(itemData) {
+    if (isCloudMode()) {
+      return cloudService.createMenuItem(itemData);
+    }
     const newItem = {
       id: 'menu-' + uuidv4().slice(0, 8),
       kitchenId: itemData.kitchenId,
@@ -469,7 +492,10 @@ class DataStore {
     return newItem;
   }
 
-  updateMenuItem(id, updateData) {
+  async updateMenuItem(id, updateData) {
+    if (isCloudMode()) {
+      return cloudService.updateMenuItem(id, updateData);
+    }
     const idx = this.data.menuItems.findIndex(m => m.id === id);
     if (idx === -1) return null;
     this.data.menuItems[idx] = { ...this.data.menuItems[idx], ...updateData };
@@ -477,7 +503,10 @@ class DataStore {
     return this.data.menuItems[idx];
   }
 
-  deleteMenuItem(id) {
+  async deleteMenuItem(id) {
+    if (isCloudMode()) {
+      return cloudService.deleteMenuItem(id);
+    }
     const initialLen = this.data.menuItems.length;
     this.data.menuItems = this.data.menuItems.filter(m => m.id !== id);
     this.save();
@@ -485,7 +514,10 @@ class DataStore {
   }
 
   // --- Orders & State Machine ---
-  getOrders(filter = {}) {
+  async getOrders(filter = {}) {
+    if (isCloudMode()) {
+      return cloudService.getOrders(filter);
+    }
     let result = [...this.data.orders];
     if (filter.customerId) {
       result = result.filter(o => o.customerId === filter.customerId);
@@ -499,11 +531,17 @@ class DataStore {
     return result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
-  getOrderById(id) {
+  async getOrderById(id) {
+    if (isCloudMode()) {
+      return cloudService.getOrderById(id);
+    }
     return this.data.orders.find(o => o.id === id || o.orderNumber === id);
   }
 
-  createOrder(orderData) {
+  async createOrder(orderData) {
+    if (isCloudMode()) {
+      return cloudService.createOrder(orderData);
+    }
     const orderNumber = 'GKR-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
     const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
@@ -556,7 +594,10 @@ class DataStore {
     return newOrder;
   }
 
-  updateOrderStatus(orderId, nextStatus, note = '', actorRole = 'SYSTEM') {
+  async updateOrderStatus(orderId, nextStatus, note = '', actorRole = 'SYSTEM') {
+    if (isCloudMode()) {
+      return cloudService.updateOrderStatus(orderId, nextStatus, note, actorRole);
+    }
     const order = this.getOrderById(orderId);
     if (!order) return null;
 
@@ -574,7 +615,10 @@ class DataStore {
   }
 
   // --- Atomic Rider Assignment ---
-  assignRider(orderId, riderId, riderName) {
+  async assignRider(orderId, riderId, riderName) {
+    if (isCloudMode()) {
+      return cloudService.assignRider(orderId, riderId, riderName);
+    }
     const order = this.getOrderById(orderId);
     if (!order) return { success: false, message: 'Order not found' };
 
@@ -599,7 +643,10 @@ class DataStore {
   }
 
   // --- Subscriptions ---
-  getSubscriptions(filter = {}) {
+  async getSubscriptions(filter = {}) {
+    if (isCloudMode()) {
+      return cloudService.getSubscriptions(filter);
+    }
     let result = [...this.data.subscriptions];
     if (filter.customerId) {
       result = result.filter(s => s.customerId === filter.customerId);
@@ -610,7 +657,10 @@ class DataStore {
     return result;
   }
 
-  createSubscription(subData) {
+  async createSubscription(subData) {
+    if (isCloudMode()) {
+      return cloudService.createSubscription(subData);
+    }
     const newSub = {
       id: 'sub-' + uuidv4().slice(0, 8),
       customerId: subData.customerId,
@@ -632,13 +682,19 @@ class DataStore {
   }
 
   // --- Reviews ---
-  getReviews(kitchenId) {
+  async getReviews(kitchenId) {
+    if (isCloudMode()) {
+      return cloudService.getReviews(kitchenId);
+    }
     if (!this.data.reviews) this.data.reviews = [];
     if (!kitchenId) return this.data.reviews;
     return this.data.reviews.filter(r => r.kitchenId === kitchenId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }
 
-  createReview(reviewData) {
+  async createReview(reviewData) {
+    if (isCloudMode()) {
+      return cloudService.createReview(reviewData);
+    }
     if (!this.data.reviews) this.data.reviews = [];
     const newRev = {
       id: 'rev-' + uuidv4().slice(0, 8),
@@ -663,6 +719,96 @@ class DataStore {
 
     this.save();
     return newRev;
+  }
+
+  async getAvailableDeliveries() {
+    if (isCloudMode()) {
+      return cloudService.getAvailableDeliveries();
+    }
+    return this.getOrders().filter(o =>
+      (o.status === 'PACKED' || o.status === 'PREPARING') && !o.riderId
+    );
+  }
+
+  async getRiderDeliveries(riderId) {
+    if (isCloudMode()) {
+      return cloudService.getRiderDeliveries(riderId);
+    }
+    return this.getOrders().filter(o => o.riderId === riderId);
+  }
+
+  async completeDelivery(orderId, riderId, otp) {
+    if (isCloudMode()) {
+      return cloudService.completeDelivery(orderId, riderId, otp);
+    }
+    const order = this.getOrderById(orderId);
+    if (!order) throw new Error('Order not found');
+    if (order.riderId !== riderId) throw new Error('Unauthorized');
+    if (order.deliveryOtp && order.deliveryOtp !== otp?.trim()) {
+      return { success: false, message: 'Invalid Delivery OTP! Please ask the customer for the correct 4-digit OTP shown in their app.' };
+    }
+    this.updateOrderStatus(orderId, 'DELIVERED', 'Order delivered successfully. Verified via OTP.', 'DELIVERY_PARTNER');
+    const rider = this.findUserById(riderId);
+    if (rider) {
+      rider.earnings = (rider.earnings || 0) + 40;
+      rider.totalDeliveries = (rider.totalDeliveries || 0) + 1;
+      this.save();
+    }
+    return { success: true, order: this.getOrderById(orderId) };
+  }
+
+  async updateSubscription(id, updateData) {
+    if (isCloudMode()) {
+      return cloudService.updateSubscription(id, updateData);
+    }
+    const sub = this.data.subscriptions.find(s => s.id === id);
+    if (!sub) return null;
+    if (updateData.status) sub.status = updateData.status;
+    if (updateData.skippedDate) {
+      if (!sub.skippedDates) sub.skippedDates = [];
+      if (!sub.skippedDates.includes(updateData.skippedDate)) {
+        sub.skippedDates.push(updateData.skippedDate);
+      }
+    }
+    this.save();
+    return sub;
+  }
+
+  async getAdminMetrics() {
+    if (isCloudMode()) {
+      return cloudService.getAdminMetrics();
+    }
+    const orders = this.getOrders();
+    const kitchens = this.getKitchens();
+    const users = this.data.users;
+    const riders = users.filter(u => u.role === 'DELIVERY_PARTNER');
+    const customers = users.filter(u => u.role === 'CUSTOMER');
+    const cooks = users.filter(u => u.role === 'COOK');
+    const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const completedOrders = orders.filter(o => o.status === 'DELIVERED').length;
+    const activeOrders = orders.filter(o => !['DELIVERED', 'REJECTED', 'CANCELLED'].includes(o.status)).length;
+    const platformCommission = Math.round(totalRevenue * 0.08);
+    return {
+      totalRevenue,
+      platformCommission,
+      totalOrders: orders.length,
+      activeOrders,
+      completedOrders,
+      totalKitchens: kitchens.length,
+      totalRiders: riders.length,
+      totalCustomers: customers.length,
+      totalCooks: cooks.length
+    };
+  }
+
+  async getDemoUsers() {
+    if (isCloudMode()) {
+      return cloudService.getDemoUsers();
+    }
+    return this.data.users.map(u => {
+      const { password, ...safe } = u;
+      return safe;
+    });
   }
 }
 

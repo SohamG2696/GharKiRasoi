@@ -49,7 +49,12 @@ export const OrderTrackingPage: React.FC = () => {
   useEffect(() => {
     fetchOrder();
     const interval = setInterval(fetchOrder, 3000);
-    return () => clearInterval(interval);
+    const handlePushEvent = () => fetchOrder();
+    window.addEventListener('gkr_order_update', handlePushEvent);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('gkr_order_update', handlePushEvent);
+    };
   }, [id]);
 
   const handleSubmitReview = async (e: React.FormEvent) => {

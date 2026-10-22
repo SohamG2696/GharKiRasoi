@@ -11,7 +11,8 @@ import {
   Wallet,
   Package,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Phone
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { Order } from '../types';
@@ -49,8 +50,13 @@ export const DeliveryDashboardPage: React.FC = () => {
 
   useEffect(() => {
     fetchDeliveryData();
-    const interval = setInterval(fetchDeliveryData, 3500);
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchDeliveryData, 3000);
+    const handlePushEvent = () => fetchDeliveryData();
+    window.addEventListener('gkr_order_update', handlePushEvent);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('gkr_order_update', handlePushEvent);
+    };
   }, [riderId]);
 
   const handleAcceptOrder = async (orderId: string) => {
@@ -61,7 +67,7 @@ export const DeliveryDashboardPage: React.FC = () => {
         body: JSON.stringify({ orderId, riderId, riderName })
       });
       if (res.ok) {
-        fetchDeliveryData();
+        await fetchDeliveryData();
       } else {
         const err = await res.json();
         alert(err.message || 'Failed to accept order');
@@ -79,7 +85,10 @@ export const DeliveryDashboardPage: React.FC = () => {
         body: JSON.stringify({ orderId, riderId })
       });
       if (res.ok) {
-        fetchDeliveryData();
+        await fetchDeliveryData();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to mark order as picked up');
       }
     } catch {
       alert('Failed to mark order as picked up');
@@ -94,7 +103,10 @@ export const DeliveryDashboardPage: React.FC = () => {
         body: JSON.stringify({ orderId, riderId })
       });
       if (res.ok) {
-        fetchDeliveryData();
+        await fetchDeliveryData();
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to update out for delivery');
       }
     } catch {
       alert('Failed to update out for delivery');
@@ -121,7 +133,7 @@ export const DeliveryDashboardPage: React.FC = () => {
       if (res.ok) {
         setActiveOtpModalOrder(null);
         setEnteredOtp('');
-        fetchDeliveryData();
+        await fetchDeliveryData();
       } else {
         const data = await res.json();
         setOtpError(data.message || 'Invalid OTP');
@@ -133,9 +145,9 @@ export const DeliveryDashboardPage: React.FC = () => {
     }
   };
 
-  const activeAssigned = myDeliveries.filter(o => o.status !== 'DELIVERED');
+  const activeAssigned = myDeliveries.filter(o => o.status !== 'DELIVERED' && o.status !== 'CANCELLED');
   const completedDeliveries = myDeliveries.filter(o => o.status === 'DELIVERED');
-  const totalRiderEarnings = (completedDeliveries.length + 8) * 40; // Including demo baseline
+  const totalRiderEarnings = completedDeliveries.length * 40;
 
   return (
     <div className="min-h-screen bg-[#faf8f5] py-8">
@@ -170,38 +182,78 @@ export const DeliveryDashboardPage: React.FC = () => {
             </button>
             <button
               onClick={fetchDeliveryData}
-              className="p-2 rounded-xl border border-stone-200 text-stone-500 hover:text-emerald-700 bg-white"
+              title="Refresh deliveries"
+              className="p-2 rounded-xl border border-stone-200 text-stone-500 hover:text-emerald-700 bg-white cursor-pointer"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* EARNINGS METRICS */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-xs">
-            <div className="text-xs text-stone-500 font-medium">Today's Earnings</div>
-            <div className="text-3xl font-extrabold text-emerald-600 mt-1">₹{totalRiderEarnings}</div>
-            <div className="text-[11px] text-stone-400 mt-1">₹40 flat payout per verified delivery</div>
+        {/* METRICS ROW */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <Wallet className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] text-stone-400 font-bold uppercase">Total Earnings</span>
+                <div className="text-xl font-extrabold text-stone-900">₹{totalRiderEarnings}.00</div>
+              </div>
+            </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-xs">
-            <div className="text-xs text-stone-500 font-medium">Active Deliveries</div>
-            <div className="text-3xl font-extrabold text-orange-600 mt-1">{activeAssigned.length}</div>
-            <div className="text-[11px] text-stone-400 mt-1">Currently in your delivery bag</div>
+          <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+                <Package className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] text-stone-400 font-bold uppercase">Delivered</span>
+                <div className="text-xl font-extrabold text-stone-900">{completedDeliveries.length + 8} Meals</div>
+              </div>
+            </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-xs">
-            <div className="text-xs text-stone-500 font-medium">Total Deliveries Completed</div>
-            <div className="text-3xl font-extrabold text-stone-900 mt-1">{completedDeliveries.length + 8}</div>
-            <div className="text-[11px] text-stone-400 mt-1">100% on-time OTP rate</div>
+          <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-700 flex items-center justify-center">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] text-stone-400 font-bold uppercase">Avg Delivery Time</span>
+                <div className="text-xl font-extrabold text-stone-900">18 Mins</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-stone-200 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] text-stone-400 font-bold uppercase">Payout / Drop</span>
+                <div className="text-xl font-extrabold text-stone-900">₹40.00 Fixed</div>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* SECTION 1: MY ACTIVE DELIVERIES */}
         <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-xs mb-8">
-          <h2 className="text-lg font-bold text-stone-900 mb-1">My Active Delivery Task</h2>
-          <p className="text-xs text-stone-500 mb-4">Pick up meal from kitchen and deliver to customer with OTP</p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-stone-900">My Active Delivery Task</h2>
+              <p className="text-xs text-stone-500">Pick up meal from kitchen and deliver to customer with OTP</p>
+            </div>
+            {activeAssigned.length > 0 && (
+              <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-3 py-1 rounded-full">
+                {activeAssigned.length} task in progress
+              </span>
+            )}
+          </div>
 
           {activeAssigned.length === 0 ? (
             <div className="text-center py-8 bg-stone-50 rounded-2xl border border-stone-100 text-xs text-stone-500">
@@ -224,13 +276,21 @@ export const DeliveryDashboardPage: React.FC = () => {
 
                     <div className="text-xs space-y-1">
                       <div className="flex items-center gap-1.5 font-bold text-stone-800">
-                        <MapPin className="w-3.5 h-3.5 text-orange-600" />
+                        <MapPin className="w-3.5 h-3.5 text-orange-600 shrink-0" />
                         <span>Pickup: {o.kitchenName}</span>
                       </div>
                       <div className="flex items-center gap-1.5 font-bold text-stone-800">
-                        <Navigation className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Drop: {o.deliveryAddress} ({o.customerName} - {o.customerPhone})</span>
+                        <Navigation className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Drop: {o.deliveryAddress} ({o.customerName || 'Customer'} - {o.customerPhone || 'Phone in App'})</span>
                       </div>
+                      <div className="text-[11px] text-stone-600 pl-5">
+                        Dishes: {(o.items || []).map(i => `${i.quantity}x ${i.name}`).join(', ') || 'Homemade Meals'}
+                      </div>
+                      {o.specialInstructions && (
+                        <div className="text-[11px] text-amber-800 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 w-fit ml-5">
+                          Note: {o.specialInstructions}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -238,18 +298,20 @@ export const DeliveryDashboardPage: React.FC = () => {
                     {o.status === 'RIDER_ASSIGNED' && (
                       <button
                         onClick={() => handlePickup(o.id)}
-                        className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs cursor-pointer"
+                        className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs cursor-pointer flex items-center gap-1"
                       >
-                        Confirm Picked Up
+                        <Package className="w-3.5 h-3.5" />
+                        <span>Confirm Picked Up</span>
                       </button>
                     )}
 
                     {o.status === 'PICKED_UP' && (
                       <button
                         onClick={() => handleOutForDelivery(o.id)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-xs cursor-pointer"
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs cursor-pointer flex items-center gap-1"
                       >
-                        Start Transit (Out for Delivery)
+                        <Bike className="w-3.5 h-3.5" />
+                        <span>Start Transit (Out for Delivery)</span>
                       </button>
                     )}
 
@@ -260,7 +322,7 @@ export const DeliveryDashboardPage: React.FC = () => {
                           setEnteredOtp('');
                           setOtpError('');
                         }}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer animate-pulse"
                       >
                         <KeyRound className="w-4 h-4" />
                         <span>Enter Customer OTP & Complete</span>
@@ -287,7 +349,7 @@ export const DeliveryDashboardPage: React.FC = () => {
 
           {availableOrders.length === 0 ? (
             <div className="text-center py-8 bg-stone-50 rounded-2xl border border-stone-100 text-xs text-stone-500">
-              No orders waiting for pickup right now.
+              No orders waiting for pickup right now. Available orders will appear here automatically as kitchens cook!
             </div>
           ) : (
             <div className="divide-y divide-stone-100">
@@ -300,15 +362,16 @@ export const DeliveryDashboardPage: React.FC = () => {
                       <span className="text-xs font-semibold text-stone-700">{o.deliveryAddress}</span>
                     </div>
                     <div className="text-xs text-stone-500">
-                      {o.items.map(i => `${i.quantity}x ${i.name}`).join(', ')} • Payout: <strong className="text-emerald-600">₹40.00</strong>
+                      {(o.items || []).map(i => `${i.quantity}x ${i.name}`).join(', ') || 'Homemade Meals'} • Payout: <strong className="text-emerald-600">₹40.00</strong>
                     </div>
                   </div>
 
                   <button
                     onClick={() => handleAcceptOrder(o.id)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2 rounded-xl shadow-xs cursor-pointer"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
                   >
-                    Accept Delivery
+                    <Bike className="w-3.5 h-3.5" />
+                    <span>Accept Delivery</span>
                   </button>
                 </div>
               ))}
@@ -327,7 +390,7 @@ export const DeliveryDashboardPage: React.FC = () => {
 
             <h3 className="text-lg font-bold text-stone-900">Enter Delivery OTP</h3>
             <p className="text-xs text-stone-500 mt-1 mb-4">
-              Ask <strong>{activeOtpModalOrder.customerName}</strong> for the 4-digit OTP shown in their app to confirm handover.
+              Ask <strong>{activeOtpModalOrder.customerName || 'the Customer'}</strong> for the 4-digit OTP shown in their app to confirm handover.
             </p>
 
             <form onSubmit={handleCompleteWithOtp} className="space-y-4">
@@ -339,6 +402,7 @@ export const DeliveryDashboardPage: React.FC = () => {
                 placeholder="4-digit OTP (e.g. 4821)"
                 className="w-full text-center text-2xl font-black tracking-widest p-3 rounded-2xl border-2 border-emerald-300 focus:outline-none focus:border-emerald-600"
                 required
+                autoFocus
               />
 
               {otpError && (
@@ -349,7 +413,7 @@ export const DeliveryDashboardPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveOtpModalOrder(null)}
-                  className="w-1/2 py-2.5 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-100"
+                  className="w-1/2 py-2.5 rounded-xl text-xs font-semibold text-stone-600 hover:bg-stone-100 cursor-pointer"
                 >
                   Cancel
                 </button>

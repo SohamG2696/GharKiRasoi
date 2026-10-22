@@ -16,6 +16,8 @@ const adminRoutes = require("./server/routes/admin");
 const paymentRoutes = require("./server/routes/payments");
 const reviewRoutes = require("./server/routes/reviews");
 
+const { supabaseUrl, supabaseAnonKey, databaseMode, isCloudMode } = require("./server/supabaseClient");
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -25,7 +27,10 @@ app.get("/api/config", (req, res) => {
   res.json({
     appName: "Ghar Ki Rasoi",
     version: "2.0.0",
-    hasSupabase: Boolean(process.env.SUPABASE_URL),
+    hasSupabase: Boolean(supabaseUrl && supabaseAnonKey),
+    supabaseUrl: supabaseUrl || null,
+    supabaseKey: supabaseAnonKey || null,
+    databaseMode,
     hasRazorpay: Boolean(process.env.RAZORPAY_KEY_ID),
     razorpayKeyId: process.env.RAZORPAY_KEY_ID || "rzp_test_demo_gkr_mode",
   });
@@ -36,6 +41,8 @@ app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
     message: "🚀 Ghar Ki Rasoi Modular API Backend is running...",
+    databaseMode,
+    isCloudActive: isCloudMode(),
     timestamp: new Date().toISOString()
   });
 });
@@ -51,11 +58,17 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/reviews", reviewRoutes);
 
+// 🔔 Real-Time Server-Sent Events Push Stream
+const { handleSSEConnection } = require("./server/realtimeService");
+const { getSentEmails } = require("./server/emailService");
+app.get("/api/realtime/stream", handleSSEConnection);
+app.get("/api/notifications/emails", (req, res) => res.json(getSentEmails()));
+
 // =========================================================
 // 🔄 Backward-Compatibility Adapters for Legacy Routes
 // =========================================================
-app.get("/chefs", (req, res) => {
-  const kitchens = store.getKitchens();
+app.get("/chefs", async (req, res) => {
+  const kitchens = await store.getKitchens();
   // Map to legacy format
   const legacy = kitchens.map(k => ({
     id: k.id,
@@ -67,10 +80,10 @@ app.get("/chefs", (req, res) => {
   res.json(legacy);
 });
 
-app.post("/chef", (req, res) => {
+app.post("/chef", async (req, res) => {
   try {
     const body = req.body;
-    const newKitchen = store.createKitchen({
+    const newKitchen = await store.createKitchen({
       name: body.kitchenName || body.kitchen_name,
       cookName: body.chefName || body.chef_name,
       phone: body.chefPhone || body.phone,
@@ -83,8 +96,8 @@ app.post("/chef", (req, res) => {
   }
 });
 
-app.get("/orders", (req, res) => {
-  const orders = store.getOrders().filter(o => o.status === 'AWAITING_KITCHEN' || o.status === 'PREPARING');
+app.get("/orders", async (req, res) => {
+  const orders = (await store.getOrders()).filter(o => o.status === 'AWAITING_KITCHEN' || o.status === 'PREPARING');
   const legacy = orders.map(o => ({
     id: o.id,
     cust_name: o.customerName,
@@ -94,10 +107,10 @@ app.get("/orders", (req, res) => {
   res.json(legacy);
 });
 
-app.post("/order", (req, res) => {
+app.post("/order", async (req, res) => {
   try {
     const body = req.body;
-    const newOrder = store.createOrder({
+    const newOrder = await store.createOrder({
       customerId: "usr-customer-1",
       customerName: body.custName || body.cust_name || "Guest Customer",
       customerPhone: body.custPhone || body.phone || "+91 9876543210",
@@ -139,7 +152,7 @@ app.use((req, res, next) => {
 });
 
 if (require.main === module) {
-  const PORT = process.env.PORT || 5000;
+  const PORT = process.env.PORT || 5005;
   app.listen(PORT, () => console.log(`✅ Ghar Ki Rasoi API Backend running on port ${PORT}`));
 }
 

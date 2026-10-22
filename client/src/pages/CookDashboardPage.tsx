@@ -15,9 +15,11 @@ import {
   UtensilsCrossed,
   RefreshCw
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import type { Kitchen, MenuItem, Order } from '../types';
 
 export const CookDashboardPage: React.FC = () => {
+  const { user } = useAuth();
   const [kitchen, setKitchen] = useState<Kitchen | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -37,15 +39,27 @@ export const CookDashboardPage: React.FC = () => {
 
   const fetchCookData = async () => {
     try {
-      // For demo, cook is associated with ktch-1 (Maa Ka Pyaar Rasoi)
-      const resK = await fetch('/api/kitchens/ktch-1');
+      let targetKitchenId = (user as any)?.kitchenId;
+      if (!targetKitchenId && user?.id) {
+        const resList = await fetch('/api/kitchens');
+        if (resList.ok) {
+          const allK: Kitchen[] = await resList.json();
+          const owned = allK.find(k => k.ownerId === user.id || k.ownerId === (user as any)?.authUserId);
+          if (owned) targetKitchenId = owned.id;
+        }
+      }
+      if (!targetKitchenId) {
+        targetKitchenId = 'ktch-1';
+      }
+
+      const resK = await fetch(`/api/kitchens/${targetKitchenId}`);
       if (resK.ok) {
         const kData = await resK.json();
         setKitchen(kData);
         setMenuItems(kData.menuItems || []);
       }
 
-      const resO = await fetch('/api/orders?kitchenId=ktch-1');
+      const resO = await fetch(`/api/orders?kitchenId=${targetKitchenId}`);
       if (resO.ok) {
         const oData = await resO.json();
         setOrders(oData);
@@ -59,9 +73,14 @@ export const CookDashboardPage: React.FC = () => {
 
   useEffect(() => {
     fetchCookData();
-    const interval = setInterval(fetchCookData, 4000);
-    return () => clearInterval(interval);
-  }, []);
+    const interval = setInterval(fetchCookData, 3000);
+    const handlePushEvent = () => fetchCookData();
+    window.addEventListener('gkr_order_update', handlePushEvent);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('gkr_order_update', handlePushEvent);
+    };
+  }, [user?.id]);
 
   const handleToggleKitchen = async () => {
     if (!kitchen) return;
@@ -193,6 +212,14 @@ export const CookDashboardPage: React.FC = () => {
                 Home Cook Control Panel
               </span>
               <h1 className="text-2xl font-extrabold text-stone-900">{kitchen?.name}</h1>
+              <div className="flex items-center gap-2 mt-0.5 mb-1">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                  🔒 Kitchen Orders Scoped
+                </span>
+                <span className="text-[11px] text-stone-400">
+                  Account: {user?.email || 'cook@gharkirasoi.com'}
+                </span>
+              </div>
               <p className="text-xs text-stone-500">Chef {kitchen?.cookName} • {kitchen?.addressText}</p>
             </div>
           </div>

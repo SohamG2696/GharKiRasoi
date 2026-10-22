@@ -18,10 +18,10 @@ const menuItemSchema = z.object({
 });
 
 // GET /api/menu?kitchenId=ktch-1
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { kitchenId } = req.query;
-    const items = store.getMenuItems(kitchenId);
+    const items = await store.getMenuItems(kitchenId);
     res.json(items);
   } catch (err) {
     res.status(500).json({ message: 'Failed to retrieve menu items', error: err.message });
@@ -29,14 +29,14 @@ router.get('/', (req, res) => {
 });
 
 // POST /api/menu - Add dynamic item
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const validated = menuItemSchema.parse({
       ...req.body,
       price: Number(req.body.price),
       dailyQuantity: req.body.dailyQuantity ? Number(req.body.dailyQuantity) : 20
     });
-    const newItem = store.createMenuItem(validated);
+    const newItem = await store.createMenuItem(validated);
     res.status(201).json({ message: 'Menu item created', item: newItem });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -47,12 +47,12 @@ router.post('/', (req, res) => {
 });
 
 // PUT /api/menu/:id - Edit item
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const updateData = { ...req.body };
     if (updateData.price) updateData.price = Number(updateData.price);
     if (updateData.dailyQuantity) updateData.dailyQuantity = Number(updateData.dailyQuantity);
-    const updated = store.updateMenuItem(req.params.id, updateData);
+    const updated = await store.updateMenuItem(req.params.id, updateData);
     if (!updated) return res.status(404).json({ message: 'Menu item not found' });
     res.json({ message: 'Menu item updated', item: updated });
   } catch (err) {
@@ -61,9 +61,9 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/menu/:id - Delete item
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
-    const deleted = store.deleteMenuItem(req.params.id);
+    const deleted = await store.deleteMenuItem(req.params.id);
     if (!deleted) return res.status(404).json({ message: 'Menu item not found' });
     res.json({ message: 'Menu item deleted successfully' });
   } catch (err) {
